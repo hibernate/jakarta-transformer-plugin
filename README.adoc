@@ -1,5 +1,71 @@
 = JakartaTransformer Gradle plugin
 
-Plugin for integrating the `JakartaTransformer` tool into Gradle build
+Plugin for integrating the `JakartaTransformer` tool into Gradle builds.
 
-More to come...  That is all... for now...
+The main implemented case at the moment is that of "shadowing" (to play on the phrase "shade").
+Basically this allows a project to apply this plugin, point to a dependency, have the plugin
+transform that dependency's artifacts and present those transformed artifacts as the projects
+published artifacts.
+
+E.g.
+
+```
+plugins {
+    id 'base'
+    id 'hibernate.jakarta-transformer'
+}
+
+ext {
+    jpa = 'javax.persistence:javax.persistence-api:2.2'
+    jta = 'org.jboss.spec.javax.transaction:jboss-transaction-api_1.2_spec'
+
+    jakartaJpa = 'jakarta.persistence:jakarta.persistence-api:3.0.0'
+    jakartaJta = 'jakarta.transaction:jakarta.transaction-api:2.0.0'
+}
+
+dependencies {
+    jakartaTransformerTool(
+            'org.eclipse.transformer:org.eclipse.transformer:0.2.0',
+            'org.eclipse.transformer:org.eclipse.transformer.cli:0.2.0',
+            'biz.aQute.bnd:biz.aQute.bnd.transform:5.1.1',
+            'commons-cli:commons-cli:1.4',
+            'org.slf4j:slf4j-simple:1.7.30',
+            'org.slf4j:slf4j-api:1.7.26'
+    )
+}
+
+jakartaTransformation {
+    renameRules rootProject.file( 'rules/jakarta-renames.properties' )
+    versionRules rootProject.file( 'rules/jakarta-versions.properties' )
+    directRules rootProject.file( 'rules/jakarta-direct.properties' )
+
+    shadow( 'org.hibernate:hibernate-core:5.5.0.Alpha1' ) {
+        dependencyResolutions {
+            dependencySubstitution {
+                substitute module( project.jpa ) with module( project.jakartaJpa )
+                substitute module( project.jta ) with module( project.jakartaJta )
+            }
+        }
+    }
+}
+```
+
+This configuration will:
+
+1. Apply this plugin to a project :D
+2. Define the dependencies for the transformer tool (this is exposed to allow easier updating)
+3. Apply shadowing to the `hibernate-core` JPA provider, producing an artifact named
+    `hibernate-core-jakarta` - by convention the transformed artifact is renamed
+    `${originalName}-jakarta`, though this is configurable
+4. Substitute dependencies as specified
+5. Present the transformed artifact(s) as this project's published artifacts
+
+It also has the ability to do the same for the "shadow source"'s tests
+
+NOTE: At the moment #5 is not yet implemented
+
+== Still to do
+
+1. Present the transformed artifact(s) as this project's published artifacts (#5)
+2. Implement/test `dependencyTransformation`
+3. Implement/test `fileTransformation`
