@@ -1,0 +1,57 @@
+plugins {
+    id 'java-library'
+    id 'java-gradle-plugin'
+    id 'com.github.sebersole.testkit-junit5' version '0.9.6'
+
+    id 'com.gradle.plugin-publish' version '0.12.0'
+    id 'nu.studer.credentials' version '2.1'
+}
+
+group 'org.hibernate.build.gradle'
+version '1.0.0-SNAPSHOT'
+
+ext {
+    pluginId = 'hibernate.jakarta-transformer'
+    pluginVersion = project.version
+}
+
+gradlePlugin {
+    plugins {
+        create("transformer") {
+            id = pluginId
+            implementationClass = "org.hibernate.build.gradle.jakarta.JakartaTransformerPlugin"
+        }
+    }
+}
+
+pluginBundle {
+//    website = "https://github.com/sebersole/testkit-junit5-plugin"
+//    vcsUrl = "https://github.com/sebersole/testkit-junit5-plugin"
+//    tags = arrayListOf("gradle", "testkit", "testing", "sebersole")
+
+    plugins {
+        getByName("transformer") {
+            displayName = "Plugin for integrating JakartaTransformer tool into Gradle builds"
+            description = "Plugin for integrating JakartaTransformer tool into Gradle builds"
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation gradleApi()
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+testKit {
+
+}
