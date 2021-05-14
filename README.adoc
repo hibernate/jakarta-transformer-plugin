@@ -9,7 +9,8 @@ published artifacts.
 
 E.g.
 
-```
+[source]
+----
 plugins {
     id 'base'
     id 'hibernate.jakarta-transformer'
@@ -48,7 +49,7 @@ jakartaTransformation {
         }
     }
 }
-```
+----
 
 This configuration will:
 
