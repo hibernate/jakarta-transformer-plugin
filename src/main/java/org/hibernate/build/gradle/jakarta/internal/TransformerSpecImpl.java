@@ -12,13 +12,13 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.util.ConfigureUtil;
 
-import org.hibernate.build.gradle.jakarta.ShadowSpec;
 import org.hibernate.build.gradle.jakarta.TransformerSpec;
 import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationSpec;
 import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationSpec;
 import org.hibernate.build.gradle.jakarta.adhoc.TransformationTask;
-import org.hibernate.build.gradle.jakarta.shadow.ShadowDependencyTask;
-import org.hibernate.build.gradle.jakarta.shadow.ShadowLocalProjectTask;
+import org.hibernate.build.gradle.jakarta.shadow.LocalProjectShadowSpec;
+import org.hibernate.build.gradle.jakarta.shadow.DependencyShadowSpec;
+import org.hibernate.build.gradle.jakarta.shadow.ShadowSpec;
 
 import groovy.lang.Closure;
 
@@ -88,21 +88,14 @@ public class TransformerSpecImpl implements TransformerSpec {
 		final Dependency shadowSourceDependency = resolveSourceDependency( shadowSource, project );
 
 		if ( shadowSourceDependency instanceof ProjectDependency ) {
-			// handle local projects specially
-			return project.getTasks().create(
-					"shadowTransform",
-					ShadowLocalProjectTask.class,
-					shadowSourceDependency,
+			return new LocalProjectShadowSpec(
+					( (ProjectDependency) shadowSourceDependency ).getDependencyProject(),
+					project,
 					config.transformerConfig
 			);
 		}
 
-		return project.getTasks().create(
-				"shadowTransform",
-				ShadowDependencyTask.class,
-				shadowSourceDependency,
-				config.transformerConfig
-		);
+		return new DependencyShadowSpec( shadowSourceDependency, project, config.transformerConfig );
 	}
 
 	private static Dependency resolveSourceDependency(Object shadowSource, Project project) {

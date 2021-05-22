@@ -51,15 +51,11 @@ public abstract class DependencyTransformerTask extends DefaultTask {
 			jarFileName += ( "-" + versionString );
 		}
 
-		if ( classifier != null && ! classifier.isEmpty() ) {
+		if ( classifier != null && ! classifier.isEmpty() && ! versionString.equals( "unspecified" ) ) {
 			jarFileName += ( "-" + classifier );
 		}
 
-		jarFileName += ".jar";
-
-		getLogger().lifecycle( "Shadowed artifact : {}", jarFileName );
-
-		return jarFileName;
+		return jarFileName + ".jar";
 	}
 
 	@Input

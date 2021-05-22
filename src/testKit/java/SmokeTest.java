@@ -1,5 +1,9 @@
 import java.io.File;
 
+import org.gradle.testkit.runner.BuildResult;
+import org.gradle.testkit.runner.BuildTask;
+import org.gradle.testkit.runner.TaskOutcome;
+
 import org.junit.jupiter.api.Test;
 
 import com.github.sebersole.testkit.Project;
@@ -18,13 +22,13 @@ public class SmokeTest {
 	@Test
 	@Project("shadow")
 	public void testShadowDependency(ProjectScope scope) {
-		scope.createGradleRunner( "clean", "shadowTransform" ).build();
+		scope.createGradleRunner( "clean", "shadow" ).build();
 	}
 
 	@Test
 	@Project("shadow")
-	public void testShadowDependencyJar(ProjectScope scope) {
-		scope.createGradleRunner( "clean", "jar" ).build();
+	public void testShadowDependencyAssemble(ProjectScope scope) {
+		scope.createGradleRunner( "clean", "assemble" ).build();
 
 		final File baseDirectory = scope.getProjectBaseDirectory();
 
@@ -55,7 +59,7 @@ public class SmokeTest {
 	@Test
 	@Project("shadowMulti")
 	public void testShadowMulti(ProjectScope scope) {
-		scope.createGradleRunner( "clean", "shadowTransform" ).build();
+		scope.createGradleRunner( "clean", "shadow" ).build();
 
 		final File baseDirectory = scope.getProjectBaseDirectory();
 
@@ -115,6 +119,19 @@ public class SmokeTest {
 
 		final File[] sourcesJarFiles = libsDir.listFiles( (dir, name) -> name.endsWith( "shadow-1.0.0-sources.jar" ) );
 		assertEquals( 1, sourcesJarFiles.length );
+	}
+
+	@Test
+	@Project("shadowMulti")
+	public void testShadowMultiUpToDateChecks(ProjectScope scope) {
+		scope.createGradleRunner( "clean", "assemble" ).build();
+
+		// Run the build a second time to check up-to-date checks
+		// This is a cumulative check - if assemble is up-to-date all
+		// previous tasks should have been up-to-date as well.
+		final BuildResult buildResult = scope.createGradleRunner( "assemble" ).build();
+		final BuildTask taskResult = buildResult.task( ":shadow:assemble" );
+		assertTrue( taskResult.getOutcome() == TaskOutcome.UP_TO_DATE );
 	}
 
 	@Test

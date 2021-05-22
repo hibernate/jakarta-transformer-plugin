@@ -8,6 +8,7 @@ import org.gradle.api.file.RegularFileProperty;
 
 import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationSpec;
 import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationSpec;
+import org.hibernate.build.gradle.jakarta.shadow.ShadowSpec;
 
 import groovy.lang.Closure;
 

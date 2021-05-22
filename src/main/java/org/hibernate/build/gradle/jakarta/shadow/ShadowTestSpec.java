@@ -1,4 +1,4 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.shadow;
 
 import java.util.List;
 import java.util.Map;

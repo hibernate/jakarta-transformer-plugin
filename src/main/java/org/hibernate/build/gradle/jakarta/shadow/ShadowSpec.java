@@ -1,4 +1,4 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.shadow;
 
 import org.gradle.api.Action;
 
@@ -15,6 +15,9 @@ import groovy.lang.Closure;
  */
 @SuppressWarnings("unused")
 public interface ShadowSpec {
+	String TASK_GROUP = "shadow";
+	String SHADOW_GROUPING_TASK = "shadow";
+
 	/**
 	 * Transform the test dependency and run the transformed tests
 	 * against the transformed main JAR.
