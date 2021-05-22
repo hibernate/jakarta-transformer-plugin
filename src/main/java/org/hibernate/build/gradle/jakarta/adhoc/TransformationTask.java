@@ -1,4 +1,4 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.adhoc;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.Configuration;
@@ -8,7 +8,7 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 
-import static org.hibernate.build.gradle.jakarta.JakartaTransformerPlugin.JAKARTA_TRANSFORMER_TOOL;
+import static org.hibernate.build.gradle.jakarta.TransformerPlugin.JAKARTA_TRANSFORMER_TOOL;
 
 /**
  * Transforms {@link #getFileToTransform()} using the JakartaTransformer tool producing

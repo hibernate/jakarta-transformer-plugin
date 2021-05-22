@@ -19,7 +19,7 @@ gradlePlugin {
     plugins {
         create("transformer") {
             id = pluginId
-            implementationClass = "org.hibernate.build.gradle.jakarta.JakartaTransformerPlugin"
+            implementationClass = "org.hibernate.build.gradle.jakarta.TransformerPlugin"
         }
     }
 }

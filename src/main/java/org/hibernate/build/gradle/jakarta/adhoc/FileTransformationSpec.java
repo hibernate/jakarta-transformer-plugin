@@ -1,12 +1,14 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.adhoc;
 
 import org.gradle.api.file.RegularFile;
+
+import org.hibernate.build.gradle.jakarta.internal.TransformerSpecImpl;
 
 /**
  * @author Steve Ebersole
  */
 public class FileTransformationSpec extends TransformationSpec {
-	public FileTransformationSpec(JakartaTransformerConfig config, TransformationTask task) {
+	public FileTransformationSpec(TransformerSpecImpl config, TransformationTask task) {
 		super( config, task );
 	}
 

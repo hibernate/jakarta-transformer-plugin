@@ -1,4 +1,4 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.adhoc;
 
 import java.io.File;
 
@@ -6,17 +6,19 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.provider.Property;
 
+import org.hibernate.build.gradle.jakarta.internal.TransformerSpecImpl;
+
 /**
  * @author Steve Ebersole
  */
 public abstract class TransformationSpec {
-	protected final JakartaTransformerConfig config;
+	protected final TransformerSpecImpl config;
 	protected final TransformationTask task;
 
 	protected final Property<String> replacementMatch;
 	protected final Property<String> replacement;
 
-	public TransformationSpec(JakartaTransformerConfig config, TransformationTask task) {
+	public TransformationSpec(TransformerSpecImpl config, TransformationTask task) {
 		this.config = config;
 		this.task = task;
 

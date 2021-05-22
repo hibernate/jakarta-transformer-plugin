@@ -4,23 +4,30 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 
+import org.hibernate.build.gradle.jakarta.internal.TransformerSpecImpl;
+
 /**
- * Plugin to support execution of the `org.eclipse.transformer.jakarta.JakartaTransformer` tool
+ * Plugin to integrate the `JakartaTransformer` tool in Gradle builds
  *
  * @author Steve Ebersole
  */
-public class JakartaTransformerPlugin implements Plugin<Project> {
+public class TransformerPlugin implements Plugin<Project> {
 	public static final String JAKARTA_TRANSFORMER_TOOL = "jakartaTransformerTool";
 	public static final String JAKARTA_TRANSFORMATION = "jakartaTransformation";
+
+	public static final String[] IMPLICIT_TOOL_DEPS = new String[] {
+			"org.eclipse.transformer:org.eclipse.transformer:0.2.0",
+			"org.eclipse.transformer:org.eclipse.transformer.cli:0.2.0"
+	};
 
 	@Override
 	public void apply(Project project) {
 		final Configuration transformerToolDependencies = project.getConfigurations().maybeCreate( JAKARTA_TRANSFORMER_TOOL );
 		transformerToolDependencies.setDescription( "Dependencies for the JakartaTransformer tool" );
 
-		final JakartaTransformerConfig config = project.getExtensions().create(
+		project.getExtensions().create(
 				JAKARTA_TRANSFORMATION,
-				JakartaTransformerConfig.class,
+				TransformerSpecImpl.class,
 				transformerToolDependencies,
 				project
 		);

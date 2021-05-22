@@ -1,4 +1,4 @@
-package org.hibernate.build.gradle.jakarta;
+package org.hibernate.build.gradle.jakarta.adhoc;
 
 import java.util.Locale;
 import java.util.Set;
@@ -10,6 +10,8 @@ import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.provider.Property;
 
+import org.hibernate.build.gradle.jakarta.internal.TransformerSpecImpl;
+
 /**
  * @author Steve Ebersole
  */
@@ -17,7 +19,7 @@ public class DependencyTransformationSpec extends TransformationSpec {
 	private final Property<Configuration> sourceConfiguration;
 	private final Property<Dependency> sourceDependency;
 
-	public DependencyTransformationSpec(JakartaTransformerConfig config, TransformationTask task) {
+	public DependencyTransformationSpec(TransformerSpecImpl config, TransformationTask task) {
 		super( config, task );
 
 		final Project project = task.getProject();
