@@ -25,13 +25,10 @@ ext {
 }
 
 dependencies {
+    // Specifying the transformer's dependencies is optional.  0.2.0 is used by default
     jakartaTransformerTool(
             'org.eclipse.transformer:org.eclipse.transformer:0.2.0',
-            'org.eclipse.transformer:org.eclipse.transformer.cli:0.2.0',
-            'biz.aQute.bnd:biz.aQute.bnd.transform:5.1.1',
-            'commons-cli:commons-cli:1.4',
-            'org.slf4j:slf4j-simple:1.7.30',
-            'org.slf4j:slf4j-api:1.7.26'
+            'org.eclipse.transformer:org.eclipse.transformer.cli:0.2.0'
     )
 }
 
@@ -40,13 +37,20 @@ jakartaTransformation {
     versionRules rootProject.file( 'rules/jakarta-versions.properties' )
     directRules rootProject.file( 'rules/jakarta-direct.properties' )
 
-    shadow( 'org.hibernate:hibernate-core:5.5.0.Alpha1' ) {
-        dependencyResolutions {
-            dependencySubstitution {
-                substitute module( project.jpa ) with module( project.jakartaJpa )
-                substitute module( project.jta ) with module( project.jakartaJta )
-            }
+    dependencyResolutions {
+        dependencySubstitution {
+            substitute module( project.jpa ) with module( project.jakartaJpa )
+            substitute module( project.jta ) with module( project.jakartaJta )
         }
+    }
+
+    shadow( 'org.hibernate:hibernate-core:5.5.0.Alpha1' ) {
+        runTests {
+            useJUnitPlatform()
+            ...
+        }
+        withSources()
+        withJavadoc()
     }
 }
 ----
@@ -55,21 +59,10 @@ This configuration will:
 
 1. Apply this plugin to a project :D
 2. Define the dependencies for the transformer tool (this is exposed to allow easier updating)
-3. Apply shadowing to the `hibernate-core` JPA provider, producing an artifact named
-    `hibernate-core-jakarta` - by convention the transformed artifact is renamed
-    `${originalName}-jakarta`, though this is configurable
-4. Substitute dependencies as specified
+3. Substitute dependencies as specified
+4. Apply shadowing to the `hibernate-core` JPA provider.  The produced artifacts are named based on
+    the shadow project's dependency details (group, name, version).
 5. Present the transformed artifact(s) as this project's published artifacts
-
-It also has the ability to do the same for the "shadow source"'s tests
-
-NOTE: At the moment #5 is not yet implemented
-
-== Still to do
-
-1. Present the transformed artifact(s) as this project's published artifacts (#5)
-2. Implement/test `dependencyTransformation`
-3. Implement/test `fileTransformation`
 
 
 == Contribute upstream
