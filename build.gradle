@@ -8,7 +8,7 @@ plugins {
 }
 
 group 'org.hibernate.build'
-version '0.9.0'
+version '0.9.1-SNAPSHOT'
 
 ext {
     pluginId = 'org.hibernate.jakarta-transformer'
