@@ -6,8 +6,9 @@ import org.gradle.api.artifacts.ResolutionStrategy;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 
-import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationSpec;
-import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationSpec;
+import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.DirectoryTransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationTask;
 import org.hibernate.build.gradle.jakarta.shadow.ShadowSpec;
 
 import groovy.lang.Closure;
@@ -91,10 +92,30 @@ public interface TransformerSpec {
 	/**
 	 * Applies transformation to a dependency
 	 */
-	void dependencyTransformation(String name, Closure<DependencyTransformationSpec> closure);
+	void dependencyTransformation(String name, Closure<DependencyTransformationTask> closure);
 
 	/**
-	 * Applies transformation to a JAR file
+	 * Applies transformation to a dependency
 	 */
-	void fileTransformation(String name, Closure<FileTransformationSpec> closure);
+	void dependencyTransformation(String name, Action<DependencyTransformationTask> transformationSpec);
+
+	/**
+	 * Applies transformation to a directory
+	 */
+	void directoryTransformation(String name, Closure<DirectoryTransformationTask> closure);
+
+	/**
+	 * Applies transformation to a directory
+	 */
+	void directoryTransformation(String name, Action<DirectoryTransformationTask> transformationSpec);
+
+	/**
+	 * Applies transformation to a file
+	 */
+	void fileTransformation(String name, Closure<FileTransformationTask> closure);
+
+	/**
+	 * Applies transformation to a file
+	 */
+	void fileTransformation(String name, Action<FileTransformationTask> transformationSpec);
 }

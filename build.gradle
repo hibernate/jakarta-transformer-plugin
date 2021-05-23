@@ -7,32 +7,46 @@ plugins {
     id 'nu.studer.credentials' version '2.1'
 }
 
-group 'org.hibernate.build.gradle'
+group 'org.hibernate.build'
 version '1.0.0-SNAPSHOT'
 
 ext {
-    pluginId = 'hibernate.jakarta-transformer'
+    pluginId = 'org.hibernate.jakarta-transformer'
     pluginVersion = project.version
+
+    if ( project.hasProperty( 'hibernatePluginPortalUsername' ) ) {
+        credentials.hibernatePluginPortalUsername = project.property( 'hibernatePluginPortalUsername' )
+    }
+    if ( credentials.hibernatePluginPortalUsername != null ) {
+        project.setProperty( 'gradle.publish.key', credentials.hibernatePluginPortalUsername )
+    }
+
+    if ( project.hasProperty( 'hibernatePluginPortalPassword' ) ) {
+        credentials.hibernatePluginPortalPassword = project.property( 'hibernatePluginPortalPassword' )
+    }
+    if ( credentials.hibernatePluginPortalPassword != null ) {
+        project.setProperty( 'gradle.publish.secret', credentials.hibernatePluginPortalPassword )
+    }
 }
 
 gradlePlugin {
     plugins {
-        create("transformer") {
+        create('transformerPlugin') {
             id = pluginId
-            implementationClass = "org.hibernate.build.gradle.jakarta.TransformerPlugin"
+            implementationClass = 'org.hibernate.build.gradle.jakarta.TransformerPlugin'
         }
     }
 }
 
 pluginBundle {
-//    website = "https://github.com/sebersole/testkit-junit5-plugin"
-//    vcsUrl = "https://github.com/sebersole/testkit-junit5-plugin"
-//    tags = arrayListOf("gradle", "testkit", "testing", "sebersole")
+    website = 'https://github.com/hibernate/jakarta-transformer-plugin/'
+    vcsUrl = 'https://github.com/hibernate/jakarta-transformer-plugin/'
+    tags = [ 'JakartaTransformer', 'Hibernate' ]
 
     plugins {
-        getByName("transformer") {
-            displayName = "Plugin for integrating JakartaTransformer tool into Gradle builds"
-            description = "Plugin for integrating JakartaTransformer tool into Gradle builds"
+        getByName('transformerPlugin') {
+            displayName = 'Hibernate JakartaTransformer plugin'
+            description = 'Plugin developed for the Hibernate project to handle JakartaTransformer processing'
         }
     }
 }
@@ -48,10 +62,6 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
 }
 
-test {
-    useJUnitPlatform()
-}
-
-testKit {
-
+tasks.javadoc {
+    options.addStringOption( "Xdoclint:none", "-quiet" )
 }

@@ -27,7 +27,6 @@ public abstract class DependencyTransformerTask extends DefaultTask {
 	private final Provider<RegularFile> jarFile;
 
 
-
 	@Inject
 	public DependencyTransformerTask(
 			Dependency sourceDependency,
@@ -51,7 +50,7 @@ public abstract class DependencyTransformerTask extends DefaultTask {
 			jarFileName += ( "-" + versionString );
 		}
 
-		if ( classifier != null && ! classifier.isEmpty() && ! versionString.equals( "unspecified" ) ) {
+		if ( classifier != null && ! classifier.isEmpty() && ! classifier.equals( "unspecified" ) ) {
 			jarFileName += ( "-" + classifier );
 		}
 

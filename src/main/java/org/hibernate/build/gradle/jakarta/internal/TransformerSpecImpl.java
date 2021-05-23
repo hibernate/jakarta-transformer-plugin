@@ -13,9 +13,9 @@ import org.gradle.api.file.RegularFileProperty;
 import org.gradle.util.ConfigureUtil;
 
 import org.hibernate.build.gradle.jakarta.TransformerSpec;
-import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationSpec;
-import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationSpec;
-import org.hibernate.build.gradle.jakarta.adhoc.TransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.DependencyTransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.DirectoryTransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationTask;
 import org.hibernate.build.gradle.jakarta.shadow.LocalProjectShadowSpec;
 import org.hibernate.build.gradle.jakarta.shadow.DependencyShadowSpec;
 import org.hibernate.build.gradle.jakarta.shadow.ShadowSpec;
@@ -195,25 +195,95 @@ public class TransformerSpecImpl implements TransformerSpec {
 	 * Applies transformation to a dependency
 	 */
 	@Override
-	public void dependencyTransformation(String name, Closure<DependencyTransformationSpec> closure) {
-		final String taskName = name + TRANSFORMATION;
-		final TransformationTask task = project.getTasks().maybeCreate( taskName, TransformationTask.class );
-
-		ConfigureUtil.configure( closure, new DependencyTransformationSpec( this, task ) );
+	public void dependencyTransformation(String name, Closure<DependencyTransformationTask> closure) {
+		final DependencyTransformationTask transformationTask = getDependencyTransformationTask( name );
+		ConfigureUtil.configure( closure, transformationTask );
 	}
+
+	private DependencyTransformationTask getDependencyTransformationTask(String name) {
+		final String taskName = determineTransformationTaskName( name );
+		project.getLogger().lifecycle( "Creating dependency transformation `{}` : `{}`", name, taskName );
+
+		DependencyTransformationTask transformationTask = (DependencyTransformationTask) project.getTasks().findByName( taskName );
+		if ( transformationTask == null ) {
+			transformationTask = project.getTasks().create(
+					taskName,
+					DependencyTransformationTask.class,
+					name,
+					transformerConfig
+			);
+		}
+		return transformationTask;
+	}
+
+	private String determineTransformationTaskName(String name) {
+		return "transform" + Character.toUpperCase( name.charAt( 0 ) ) + name.substring( 1 );
+	}
+
+	@Override
+	public void dependencyTransformation(String name, Action<DependencyTransformationTask> transformationSpec) {
+		final DependencyTransformationTask transformationTask = getDependencyTransformationTask( name );
+		transformationSpec.execute( transformationTask );
+	}
+
+	@Override
+	public void directoryTransformation(String name, Closure<DirectoryTransformationTask> closure) {
+		final DirectoryTransformationTask transformationTask = getDirectoryTransformationTask( name );
+		ConfigureUtil.configure( closure, transformationTask );
+	}
+
+	@Override
+	public void directoryTransformation(String name, Action<DirectoryTransformationTask> transformationSpec) {
+		final DirectoryTransformationTask transformationTask = getDirectoryTransformationTask( name );
+		transformationSpec.execute( transformationTask );
+	}
+
+	private DirectoryTransformationTask getDirectoryTransformationTask(String name) {
+		final String taskName = determineTransformationTaskName( name );
+		project.getLogger().lifecycle( "Creating directory transformation `{}` : `{}`", name, taskName );
+
+		DirectoryTransformationTask transformationTask = (DirectoryTransformationTask) project.getTasks().findByName( taskName );
+		if ( transformationTask == null ) {
+			transformationTask = project.getTasks().create(
+					taskName,
+					DirectoryTransformationTask.class,
+					name,
+					transformerConfig
+			);
+		}
+		return transformationTask;
+	}
+
 
 	/**
 	 * Applies transformation to a JAR file
 	 */
 	@Override
-	public void fileTransformation(String name, Closure<FileTransformationSpec> closure) {
-		final String taskName = name + TRANSFORMATION;
-		final TransformationTask task = project.getTasks().maybeCreate(
-				taskName,
-				TransformationTask.class
-		);
+	public void fileTransformation(String name, Closure<FileTransformationTask> closure) {
+		final FileTransformationTask transformationTask = getFileTransformationTask( name );
+		ConfigureUtil.configure( closure, transformationTask );
+	}
 
-		ConfigureUtil.configure( closure, new FileTransformationSpec( this, task ) );
+	@Override
+	public void fileTransformation(String name, Action<FileTransformationTask> transformationSpec) {
+		final FileTransformationTask transformationTask = getFileTransformationTask( name );
+		transformationSpec.execute( transformationTask );
+	}
+
+	private FileTransformationTask getFileTransformationTask(String name) {
+		final String taskName = determineTransformationTaskName( name );
+		project.getLogger().lifecycle( "Creating file transformation `{}` : `{}`", name, taskName );
+
+		FileTransformationTask transformationTask = (FileTransformationTask) project.getTasks().findByName( taskName );
+		if ( transformationTask == null ) {
+			transformationTask = project.getTasks().create(
+					taskName,
+					FileTransformationTask.class,
+					name,
+					transformerConfig
+			);
+		}
+		return transformationTask;
 	}
 
 }
