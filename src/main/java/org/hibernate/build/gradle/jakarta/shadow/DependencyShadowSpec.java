@@ -46,8 +46,7 @@ public class DependencyShadowSpec implements ShadowSpec {
 		this.shadowProject = shadowProject;
 		this.transformerConfig = transformerConfig;
 
-		// todo : determine how to best handle manging the normal java-library tasks
-		// 		like compile, jar, etc
+		shadowProject.getPluginManager().apply( "java-library" );
 
 		final Jar jarTask = (Jar) shadowProject.getTasks().getByName( "jar" );
 

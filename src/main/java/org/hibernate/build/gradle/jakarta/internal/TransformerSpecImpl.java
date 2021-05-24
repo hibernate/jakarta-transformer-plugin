@@ -83,8 +83,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 			Object shadowSource,
 			TransformerSpecImpl config,
 			Project project) {
-		project.getPluginManager().apply( "java-library" );
-
 		final Dependency shadowSourceDependency = resolveSourceDependency( shadowSource, project );
 
 		if ( shadowSourceDependency instanceof ProjectDependency ) {

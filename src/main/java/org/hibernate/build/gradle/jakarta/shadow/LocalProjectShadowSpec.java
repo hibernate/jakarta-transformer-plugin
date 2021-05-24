@@ -4,6 +4,7 @@ import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.file.Directory;
+import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -37,13 +38,23 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		shadowConfiguration( "api" );
-		shadowConfiguration( "implementation" );
-		shadowConfiguration( "compileOnly" );
+		final boolean isJavaLibrary = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class ) != null;
+
+		if ( isJavaLibrary ) {
+			targetProject.getPluginManager().apply( "java-library" );
+
+			shadowConfiguration( "api" );
+			shadowConfiguration( "implementation" );
+			shadowConfiguration( "compileOnly" );
+			shadowConfiguration( "apiElements" );
+			shadowConfiguration( "runtimeElements" );
+		}
+		else {
+			targetProject.getPluginManager().apply( "java" );
+		}
+
 		shadowConfiguration( "compileClasspath" );
 		shadowConfiguration( "runtimeClasspath" );
-		shadowConfiguration( "apiElements" );
-		shadowConfiguration( "runtimeElements" );
 
 		final SourceSet sourceMainSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "main" );
 		final SourceSet shadowMainSourceSet = Helper.extractSourceSets( targetProject ).getByName( "main" );
