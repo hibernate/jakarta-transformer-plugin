@@ -56,10 +56,17 @@ repositories {
 }
 
 dependencies {
+    ext {
+        assertjVersion = '3.14.0'
+        junitVersion = '5.7.0'
+    }
+
     implementation gradleApi()
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    testImplementation "org.assertj:assertj-core:${assertjVersion}"
+
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
 }
 
 tasks.javadoc {

@@ -1,5 +1,6 @@
 package org.hibernate.build.gradle.jakarta.internal;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -21,6 +22,8 @@ import org.hibernate.build.gradle.jakarta.TransformationException;
  * @author Steve Ebersole
  */
 public class TransformerConfig implements TransformerTool.Config, TransformerToolAccess {
+	private final Instant buildStarted = Instant.now();
+
 	private final Provider<Directory> outputDirectory;
 
 	private final Provider<RegularFile> renameRules;
@@ -45,12 +48,18 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 		this.directRules = directRules;
 
 		project.afterEvaluate(
-				(p) -> transformerTool = new TransformerTool( jakartaToolDependencies, this, p )
+				(p) -> {
+					transformerTool = new TransformerTool( jakartaToolDependencies, this, p );
+				}
 		);
 	}
 
 	public Provider<Directory> outputDirectoryAccess() {
 		return outputDirectory;
+	}
+
+	public Instant getBuildStarted() {
+		return buildStarted;
 	}
 
 	@Override

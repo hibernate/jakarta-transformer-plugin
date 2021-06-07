@@ -35,7 +35,7 @@ jakartaTransformation {
         dependencySubstitution {
             substitute module( project.jpa ) with module( project.jakartaJpa )
             substitute module( project.jta ) with module( project.jakartaJta )
-//            substitute project( ':real' ) with project( ':shadow' )
+//            substitute project( ':real' ) with project( ':real-jakarta' )
         }
     }
 

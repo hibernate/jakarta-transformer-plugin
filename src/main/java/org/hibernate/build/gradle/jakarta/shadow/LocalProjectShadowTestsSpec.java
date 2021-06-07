@@ -7,7 +7,9 @@ import java.util.Set;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.Directory;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
@@ -19,13 +21,14 @@ import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.language.jvm.tasks.ProcessResources;
 import org.gradle.util.ConfigureUtil;
 
+import org.hibernate.build.gradle.jakarta.adhoc.DirectoryTransformationTask;
+import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationTask;
 import org.hibernate.build.gradle.jakarta.internal.Helper;
 import org.hibernate.build.gradle.jakarta.internal.TransformerConfig;
 
 import groovy.lang.Closure;
 
 import static org.hibernate.build.gradle.jakarta.shadow.ShadowSpec.SHADOW_GROUPING_TASK;
-import static org.hibernate.build.gradle.jakarta.shadow.ShadowSpec.TASK_GROUP;
 
 /**
  * @author Steve Ebersole
@@ -44,115 +47,165 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 	 */
 	private final Test runnerTask;
 
-	public LocalProjectShadowTestsSpec(Project sourceProject, Project targetProject, TransformerConfig transformerConfig) {
+	public LocalProjectShadowTestsSpec(
+			Project sourceProject,
+			Project targetProject,
+			TransformerConfig transformerConfig) {
 		this.sourceProject = sourceProject;
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		shadowConfiguration( "testCompileOnly" );
-		shadowConfiguration( "testImplementation" );
-		shadowConfiguration( "testRuntimeOnly" );
+		runnerTask = createTestTask();
+		runnerTask.doFirst(
+				new Action<Task>() {
+					@Override
+					public void execute(Task testTask) {
+						targetProject.getLogger().debug( "############################################################" );
+						targetProject.getLogger().debug( " `:{shadow}:test` task classpath..." );
+						targetProject.getLogger().debug( "############################################################" );
+						runnerTask.getClasspath().forEach(
+								(cpEntry) -> targetProject.getLogger().debug( "   > {}", cpEntry.getAbsolutePath() )
+						);
+						targetProject.getLogger().debug( "############################################################" );
+						targetProject.getLogger().debug( "############################################################" );
+					}
+				}
+		);
+	}
 
-		shadowConfiguration( "testCompileClasspath" );
+	private Test createTestTask() {
+		final Configuration testRuntimeClasspath = targetProject.getConfigurations().maybeCreate( "testRuntimeClasspath" );
 		shadowConfiguration( "testRuntimeClasspath" );
 
 		final SourceSet sourceTestSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "test" );
-		final SourceSet shadowTestSourceSet = Helper.extractSourceSets( targetProject ).getByName( "test" );
 
-		final Directory unpackBaseDirectory = Helper.determineUnpackBaseDir( sourceProject, targetProject );
-		final Directory shadowBaseCopyDirectory = unpackBaseDirectory.dir( "test" );
+		final Task groupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
 
-		final Directory shadowJavaDirectory = shadowBaseCopyDirectory.dir( "java" );
-		shadowTestSourceSet.getAllJava().srcDir( shadowJavaDirectory );
+		final DirectoryTransformationTask javaTransformationTask = createJavaTransformationTask(
+				sourceProject,
+				targetProject,
+				sourceTestSourceSet,
+				groupingTask
+		);
+		final DirectoryTransformationTask resourcesTransformationTask = createResourcesTransformationTask(
+				sourceProject,
+				targetProject,
+				sourceTestSourceSet,
+				groupingTask
+		);
 
-		final Directory shadowResourcesDirectory = shadowBaseCopyDirectory.dir( "resources" );
-		shadowTestSourceSet.getResources().srcDir( shadowResourcesDirectory );
+		final Test runnerTask = targetProject.getTasks().maybeCreate( "test", Test.class );
+		runnerTask.dependsOn( groupingTask );
 
+		// prepare the Test task's classpath.  add:
+		// 	* shadowJar output
+		//	* test java shadow output
+		//	* test resources shadow output
+		final FileTransformationTask shadowJarTask = (FileTransformationTask) targetProject.getTasks().getByName( "shadowJar" );
+		runnerTask.setClasspath(
+				testRuntimeClasspath.plus( targetProject.files( shadowJarTask.getOutput() ) )
+						.plus( targetProject.files( javaTransformationTask.getOutput() ) )
+						.plus( targetProject.files( resourcesTransformationTask.getOutput() ) )
+		);
 
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// prepare tasks
-		//		1. create `:shadow:{SHADOW_TEST_JAVA_TASK}` to transform the source project's test java
-		//		2. `:shadow:compileTestJava` depends-on `:shadow:{SHADOW_TEST_JAVA_TASK}`
-		//		3. create `:shadow:{SHADOW_TEST_RESOURCES_TASK}` to transform the source project's test resources
-		//		4. `:shadow:{SHADOW_TEST_RESOURCES_TASK}` depends-on `:source:processTestResources`
-		//		5. `:shadow:processTestResources` depends-on `:shadow:{SHADOW_TEST_RESOURCES_TASK}`
-		//		6. `:shadow:shadow` depends on both `:shadow:{SHADOW_TEST_JAVA_TASK}` and `:shadow:{SHADOW_TEST_RESOURCES_TASK}`
-		//		7. prepare `:shadow:test`
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		// prepare the Test task's classes dir (for test discovery)
+		runnerTask.setTestClassesDirs(
+				targetProject.files( javaTransformationTask.getOutput(), resourcesTransformationTask.getOutput() )
+		);
 
+		// prepare the Test task's outputs
+		runnerTask.getBinaryResultsDirectory().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test/binary" ) );
+		runnerTask.getReports().getJunitXml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "reports/tests/test" ) );
+		runnerTask.getReports().getHtml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test" ) );
 
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 1. create `:shadow:{SHADOW_TEST_JAVA_TASK}`
-		final TransformLocalSourcesTask transformJavaSourcesTask = targetProject.getTasks().create(
+		// todo : realistically we probably need to copy over stuff like jvm-args, etc...
+		//		although we could simply let user do that in the target-project build script
+		return runnerTask;
+	}
+
+	private DirectoryTransformationTask createJavaTransformationTask(
+			Project sourceProject,
+			Project targetProject,
+			SourceSet sourceTestSourceSet,
+			Task groupingTask) {
+		final DirectoryTransformationTask javaTransformationTask = targetProject.getTasks().create(
 				SHADOW_TEST_JAVA_TASK,
-				TransformLocalSourcesTask.class,
-				sourceTestSourceSet.getAllJava(),
-				shadowJavaDirectory,
-				false,
-				sourceTestSourceSet,
-				transformerConfig,
-				sourceProject
+				DirectoryTransformationTask.class,
+				transformerConfig
 		);
-		transformJavaSourcesTask.setGroup( TASK_GROUP );
+		groupingTask.dependsOn( javaTransformationTask );
+		javaTransformationTask.doFirst(
+				new Action<Task>() {
+					@Override
+					public void execute(Task task) {
+						targetProject.getLogger().lifecycle( "###########################################" );
+						targetProject.getLogger().lifecycle( "Deleting shadow test-Java dir because... well... jakarta" );
+						targetProject.getLogger().lifecycle( "###########################################" );
+						javaTransformationTask.getOutput().getAsFile().get().delete();
+						targetProject.getLogger().lifecycle( "###########################################" );
+					}
+				}
+		);
 
+		final JavaCompile sourceCompileTestJavaTask = (JavaCompile) sourceProject.getTasks().getByName( sourceTestSourceSet.getCompileJavaTaskName() );
+		javaTransformationTask.dependsOn( sourceCompileTestJavaTask );
+		javaTransformationTask.getSource().convention( sourceCompileTestJavaTask.getDestinationDirectory() );
+		final Provider<Directory> javaTransformationOutputDirectory = targetProject.getLayout().getBuildDirectory().dir( "classes/java/test" );
+		javaTransformationTask.getOutput().convention( javaTransformationOutputDirectory );
+		return javaTransformationTask;
+	}
 
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 2. prepare `:shadow:compileTestJava`
-		final JavaCompile shadowCompile = (JavaCompile) targetProject.getTasks().getByName( shadowTestSourceSet.getCompileJavaTaskName() );
-		shadowCompile.dependsOn( transformJavaSourcesTask );
-		shadowCompile.source( shadowJavaDirectory );
-
-
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 3. create `:shadow:{SHADOW_TEST_RESOURCES_TASK}`
-		final TransformLocalSourcesTask transformResourcesTask = targetProject.getTasks().create(
+	private DirectoryTransformationTask createResourcesTransformationTask(
+			Project sourceProject,
+			Project targetProject,
+			SourceSet sourceTestSourceSet,
+			Task groupingTask) {
+		final DirectoryTransformationTask resourcesTransformationTask = targetProject.getTasks().create(
 				SHADOW_TEST_RESOURCES_TASK,
-				TransformLocalSourcesTask.class,
-				sourceTestSourceSet.getResources(),
-				shadowResourcesDirectory,
-				true,
-				sourceTestSourceSet,
-				transformerConfig,
-				sourceProject
+				DirectoryTransformationTask.class,
+				transformerConfig
 		);
-		transformResourcesTask.setGroup( TASK_GROUP );
+		groupingTask.dependsOn( resourcesTransformationTask );
 
-
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 4. `:shadow:{SHADOW_TEST_RESOURCES_TASK}` depends-on `:source:processTestResources`
-		final ProcessResources sourceProcessResourcesTask = (ProcessResources) sourceProject.getTasks().getByName(
-				sourceTestSourceSet.getProcessResourcesTaskName()
+		resourcesTransformationTask.doFirst(
+				new Action<>() {
+					@Override
+					public void execute(Task task) {
+						targetProject.getLogger().lifecycle( "###########################################" );
+						targetProject.getLogger().lifecycle( "Deleting shadow test-resources dir because... well... jakarta" );
+						targetProject.getLogger().lifecycle( "###########################################" );
+						resourcesTransformationTask.getOutput().getAsFile().get().delete();
+						targetProject.getLogger().lifecycle( "###########################################" );
+					}
+				}
 		);
-		transformResourcesTask.dependsOn( sourceProcessResourcesTask );
 
+		final ProcessResources sourceProcessTestResourcesTask = (ProcessResources) sourceProject
+				.getTasks()
+				.getByName( sourceTestSourceSet.getProcessResourcesTaskName() );
 
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 5. prepare `:shadow:processTestResources`
-		final ProcessResources shadowProcessResourcesTask = (ProcessResources) targetProject.getTasks().getByName(
-				shadowTestSourceSet.getProcessResourcesTaskName()
+		resourcesTransformationTask.dependsOn( sourceProcessTestResourcesTask );
+		resourcesTransformationTask.getSource().convention(
+				sourceProject.getLayout().dir(
+						sourceProject.provider( sourceProcessTestResourcesTask::getDestinationDir )
+				)
 		);
-		shadowProcessResourcesTask.dependsOn( transformResourcesTask );
-		shadowProcessResourcesTask.getSource().plus( targetProject.fileTree( shadowResourcesDirectory ) );
-		shadowProcessResourcesTask.getInputs().dir( shadowResourcesDirectory );
 
-
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 6. prepare `:shadow:shadow`
-		final Task shadowGroupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
-		shadowGroupingTask.dependsOn( transformJavaSourcesTask );
-		shadowGroupingTask.dependsOn( transformResourcesTask );
-
-
-		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		// 7. prepare `:shadow:test`
-		runnerTask = (Test) targetProject.getTasks().getByName( "test" );
-		runnerTask.dependsOn( shadowGroupingTask );
+		final Provider<Directory> transformResourcesOutputDirectory = targetProject.getLayout().getBuildDirectory().dir( "resources/test" );
+		resourcesTransformationTask.getOutput().convention( transformResourcesOutputDirectory );
+		return resourcesTransformationTask;
 	}
 
 	private void shadowConfiguration(String configurationName) {
 		Helper.shadowConfiguration( configurationName, sourceProject, targetProject, transformerConfig );
+
+		final Configuration targetConfiguration = targetProject.getConfigurations().getByName( configurationName );
+		targetConfiguration.getResolutionStrategy().dependencySubstitution(
+				(dependencySubstitutions) -> {
+					dependencySubstitutions.substitute( dependencySubstitutions.project( sourceProject.getPath() ) )
+							.with( dependencySubstitutions.project( targetProject.getPath() ) );
+				}
+		);
 	}
 
 

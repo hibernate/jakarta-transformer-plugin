@@ -1,8 +1,10 @@
 package org.hibernate.build.gradle.jakarta.adhoc;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -21,23 +23,11 @@ public abstract class FileTransformationTask extends DefaultTask {
 
 	@Inject
 	@SuppressWarnings("UnstableApiUsage")
-	public FileTransformationTask(String transformationName, TransformerConfig transformerConfig) {
+	public FileTransformationTask(TransformerConfig transformerConfig) {
 		this.transformerConfig = transformerConfig;
 
 		source = getProject().getObjects().fileProperty();
-
 		output = getProject().getObjects().fileProperty();
-		output.convention(
-				getProject().provider(
-						() -> {
-							// this assumes "single dot" file extensions
-							final String sourceFileName = source.get().getAsFile().getName();
-							final int extensionDelimiterLocation = sourceFileName.lastIndexOf( '.' );
-							final String outputFileName = transformationName + sourceFileName.substring( extensionDelimiterLocation );
-							return transformerConfig.outputDirectoryAccess().get().file( outputFileName );
-						}
-				)
-		);
 	}
 
 	@InputFile

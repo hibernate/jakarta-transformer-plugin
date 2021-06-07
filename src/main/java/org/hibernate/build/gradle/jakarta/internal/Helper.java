@@ -30,14 +30,22 @@ public class Helper {
 		final Configuration sourceConfiguration = sourceProject.getConfigurations().getByName( configurationName );
 		final Configuration shadowConfiguration = targetProject.getConfigurations().getByName( configurationName );
 
-		// technically should already have the substitutions applied, but be sure..
-		transformerConfig.applyDependencyResolutionStrategy( shadowConfiguration );
+		shadowConfiguration( sourceConfiguration, shadowConfiguration, targetProject, transformerConfig );
+	}
 
-		final DependencySet sourceDependencies = sourceConfiguration.getAllDependencies();
+	public static void shadowConfiguration(
+			Configuration source,
+			Configuration target,
+			Project targetProject,
+			TransformerConfig transformerConfig) {
+		// technically should already have the substitutions applied, but be sure..
+		transformerConfig.applyDependencyResolutionStrategy( target );
+
+		final DependencySet sourceDependencies = source.getAllDependencies();
 
 		final DependencyHandler shadowDependenciesHandler = targetProject.getDependencies();
 		sourceDependencies.forEach(
-				(dependency) -> shadowDependenciesHandler.add( shadowConfiguration.getName(), dependency )
+				(dependency) -> shadowDependenciesHandler.add( target.getName(), dependency )
 		);
 	}
 
@@ -70,4 +78,18 @@ public class Helper {
 		return javaPluginConvention.getSourceSets();
 	}
 
+	public static String determineJarFileName(Project project, String classifier) {
+		String fileName = project.getName();
+
+		final String version = project.getVersion().toString();
+		if ( version != null && ! "unspecified".equals( version ) ) {
+			fileName += ( "-" + version );
+		}
+
+		if ( classifier != null ) {
+			fileName += ( "-" + classifier );
+		}
+
+		return fileName + ".jar";
+	}
 }
