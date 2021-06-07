@@ -168,7 +168,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		groupingTask.dependsOn( resourcesTransformationTask );
 
 		resourcesTransformationTask.doFirst(
-				new Action<>() {
+				new Action<Task>() {
 					@Override
 					public void execute(Task task) {
 						targetProject.getLogger().lifecycle( "###########################################" );

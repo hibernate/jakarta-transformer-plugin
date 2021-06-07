@@ -1,5 +1,7 @@
 = JakartaTransformer Gradle plugin
 
+image:https://github.com/hibernate/jakarta-transformer-plugin/actions/workflows/gradle.yml/badge.svg[Build Status,link=https://github.com/hibernate/jakarta-transformer-plugin/actions/workflows/gradle.yml]
+
 Plugin for integrating the `JakartaTransformer` tool into Gradle builds.
 
 The main implemented case at the moment is that of "shadowing" (to play on the phrase "shade").
@@ -65,10 +67,11 @@ This configuration will:
 5. Present the transformed artifact(s) as this project's published artifacts
 
 
-== Contribute upstream
+[NOTE]
+----
+I did try to https://github.com/eclipse/transformer/issues/146[contribute] this back to the upstream Jakarta project but
+never got a reply, so I simply implement the requirements for the Hibernate projects.
 
-Why don't I just contribute this to the Jakarta Transformer project?  Well, I tried - https://github.com/eclipse/transformer/issues/146
-
-For a more complete implementation we would support "selections", "bundles" and other Transformer / JakartaTransformer
-options.  However, this plugin simply supports the options needed for Hibernate ORM build.  Since the Jakarta project is
-not interested in the plugin, it will only be used and supported within those constraints
+For a more complete implementation, e.g., we would support "selections", "bundles" and other Transformer / JakartaTransformer
+options.  However, this plugin simply supports the options needed for Hibernate builds.
+----
