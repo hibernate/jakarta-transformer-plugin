@@ -1,0 +1,19 @@
+apply plugin: 'base'
+
+apply from: rootProject.file('gradle/libraries.gradle')
+
+jakartaTransformation {
+    renameRules rootProject.file( 'rules/jakarta-renames.properties' )
+    versionRules rootProject.file( 'rules/jakarta-versions.properties' )
+    directRules rootProject.file( 'rules/jakarta-direct.properties' )
+
+    dependencyResolutions {
+        dependencySubstitution {
+            substitute module( libraries.jpa ) with module( libraries.jakarta_jpa )
+            substitute module( libraries.jta ) with module( libraries.jakarta_jta )
+
+            substitute project(':real') with project(':real-jakarta')
+            substitute project(':real-testing') with project(':real-testing-jakarta')
+        }
+    }
+}

@@ -1,0 +1,54 @@
+// mimics `hibernate-core-jakarta`
+
+plugins {
+    id 'org.hibernate.jakarta-transformer'
+}
+
+apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
+
+jakartaTransformation {
+
+    dependencyResolutions {
+        dependencySubstitution {
+            substitute project(':real-testing') with project(':real-testing-jakarta')
+        }
+    }
+
+    shadow( project( ':real' ) ) {
+        runTests {
+            useJUnitPlatform()
+        }
+        withJavadoc()
+        withSources()
+    }
+}
+
+test {
+    doFirst {
+        getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( " `{}` task classpath...", tasks.test.path );
+        getLogger().lifecycle( "############################################################" );
+        tasks.test.getClasspath().forEach {
+            getLogger().lifecycle("   -> {}", it.getAbsolutePath())
+        }
+        getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( "############################################################" );
+
+        renderDependencies(configurations.compileScope)
+        renderDependencies(configurations.runtimeScope)
+        renderDependencies(configurations.testCompileScope)
+        renderDependencies(configurations.testRuntimeScope)
+    }
+}
+
+private void renderDependencies(Configuration configuration) {
+    getLogger().lifecycle("############################################################");
+    getLogger().lifecycle(" `{}` ({}) dependencies...", configuration.name, project.path);
+    getLogger().lifecycle("############################################################");
+    configuration.resolvedConfiguration.resolvedArtifacts.forEach {
+        getLogger().lifecycle("   -> {}", it.file.absolutePath)
+    }
+    getLogger().lifecycle("############################################################");
+    getLogger().lifecycle("############################################################");
+}
+

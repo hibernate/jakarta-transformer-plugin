@@ -4,6 +4,7 @@ import java.util.Set;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
@@ -43,10 +44,22 @@ public class Helper {
 
 		final DependencySet sourceDependencies = source.getAllDependencies();
 
+		targetProject.getLogger().lifecycle( "###############################################################" );
+		targetProject.getLogger().lifecycle( "Shadowing source Configuration `{}` into ({}) `{}`", source.getName(), targetProject.getPath(), target.getName() );
+		targetProject.getLogger().lifecycle( "###############################################################" );
 		final DependencyHandler shadowDependenciesHandler = targetProject.getDependencies();
 		sourceDependencies.forEach(
-				(dependency) -> shadowDependenciesHandler.add( target.getName(), dependency )
+				(dependency) -> {
+					targetProject.getLogger().lifecycle( "    > {}", dependencyNotation( dependency ) );
+					shadowDependenciesHandler.add( target.getName(), dependency );
+				}
 		);
+		targetProject.getLogger().lifecycle( "###############################################################" );
+		targetProject.getLogger().lifecycle( "###############################################################" );
+	}
+
+	private static String dependencyNotation(Dependency dependency) {
+		return dependency.getGroup() + ":" + dependency.getName() + ":" + dependency.getVersion();
 	}
 
 	public static Directory determineUnpackBaseDir(Project sourceProject, Project shadowProject) {

@@ -1,17 +1,11 @@
 package org.hibernate.build.gradle.jakarta.shadow;
 
-import java.util.function.Supplier;
-
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.DependencyConstraint;
-import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.file.RegularFile;
-import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
 import org.gradle.api.publish.PublicationContainer;
@@ -19,7 +13,6 @@ import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.ivy.IvyModuleDescriptorSpec;
 import org.gradle.api.publish.ivy.IvyPublication;
 import org.gradle.api.publish.ivy.plugins.IvyPublishPlugin;
-import org.gradle.api.publish.maven.MavenPom;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
 import org.gradle.api.tasks.SourceSet;
@@ -29,10 +22,10 @@ import org.gradle.util.ConfigureUtil;
 import org.hibernate.build.gradle.jakarta.TransformationException;
 import org.hibernate.build.gradle.jakarta.adhoc.FileTransformationTask;
 import org.hibernate.build.gradle.jakarta.internal.Helper;
+import org.hibernate.build.gradle.jakarta.internal.PomHelper;
 import org.hibernate.build.gradle.jakarta.internal.TransformerConfig;
 
 import groovy.lang.Closure;
-import groovy.util.Node;
 
 /**
  * @author Steve Ebersole
@@ -45,11 +38,13 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 
 	private final Task groupingTask;
 
+	private final Configuration compileScopeDependencies;
+	private final Configuration runtimeScopeDependencies;
+
 	private MavenPublication shadowMavenPublication;
 	private IvyPublication shadowIvyPublication;
 
 	private LocalProjectShadowTestsSpec testsSpec;
-
 
 
 	public LocalProjectShadowSpec(
@@ -60,11 +55,11 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		final Configuration runtimeScopeDependencies = targetProject.getConfigurations().maybeCreate( "runtimeScope" );
-		shadowConfiguration( "runtimeClasspath", runtimeScopeDependencies );
+		compileScopeDependencies = targetProject.getConfigurations().maybeCreate( "compileScope" );
+		runtimeScopeDependencies = targetProject.getConfigurations().maybeCreate( "runtimeScope" );
 
-		final Configuration compileScopeDependencies = targetProject.getConfigurations().maybeCreate( "compileScope" );
 		shadowConfiguration( "compileClasspath", compileScopeDependencies );
+		shadowConfiguration( "runtimeClasspath", runtimeScopeDependencies );
 
 		groupingTask = targetProject.getTasks().create( SHADOW_GROUPING_TASK );
 		groupingTask.setGroup( TASK_GROUP );
@@ -114,17 +109,8 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 						}
 				);
 
-				shadowMavenPublication.versionMapping(
-						versionMappingStrategy -> {
-							versionMappingStrategy.usage(
-									"java-runtime",
-									variantVersionMappingStrategy -> variantVersionMappingStrategy.fromResolutionOf( targetProject.getConfigurations().getByName( "runtime" ) )
-							);
-						}
-				);
-
 				// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-				copy( sourceMavenPublication.getPom(), shadowMavenPublication.getPom(), compileScopeDependencies, runtimeScopeDependencies );
+				PomHelper.copy( sourceProject, sourceMavenPublication.getPom(), targetProject, shadowMavenPublication.getPom(), compileScopeDependencies, runtimeScopeDependencies );
 			}
 
 			if ( ivyPublishPlugin != null ) {
@@ -157,149 +143,6 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		}
 
 		throw new TransformationException( "Could not locate main source MavenPublication" );
-	}
-
-	private void copy(MavenPom sourcePom, MavenPom targetPom, Configuration compileDependencies, Configuration runtimeDependencies) {
-		injectPomString( sourcePom.getName(), targetPom.getName(), () -> "(shadowed) " + sourceProject.getPath() );
-		injectPomString( sourcePom.getDescription(), targetPom.getDescription(), () -> "(shadowed) " + sourceProject.getName() );
-		injectPomString( sourcePom.getUrl(), targetPom.getUrl(), () -> null );
-
-		sourcePom.ciManagement(
-				(sourceCiManagement) -> {
-					targetPom.ciManagement(
-							(targetCiManagement) -> {
-								injectPomString( sourceCiManagement.getUrl(), targetCiManagement.getUrl(), () -> null );
-								injectPomString( sourceCiManagement.getSystem(), targetCiManagement.getSystem(), () -> null );
-							}
-					);
-				}
-		);
-
-		sourcePom.organization(
-				(sourceOrganization) -> {
-					targetPom.organization(
-							(targetOrganization) -> {
-								injectPomString( sourceOrganization.getName(), targetOrganization.getName(), () -> null );
-								injectPomString( sourceOrganization.getUrl(), targetOrganization.getUrl(), () -> null );
-							}
-					);
-				}
-		);
-
-		sourcePom.licenses(
-				(sourceLicenses) -> {
-					targetPom.licenses(
-							(targetLicenses) -> {
-								sourceLicenses.license(
-										(sourceLicense) -> {
-											targetLicenses.license(
-													(targetLicense) -> {
-														injectPomString( sourceLicense.getName(), targetLicense.getName(), () -> null );
-														injectPomString( sourceLicense.getComments(), targetLicense.getComments(), () -> null );
-														injectPomString( sourceLicense.getUrl(), targetLicense.getUrl(), () -> null );
-														injectPomString( sourceLicense.getDistribution(), targetLicense.getDistribution(), () -> null );
-													}
-											);
-
-										}
-								);
-							}
-					);
-				}
-		);
-
-		sourcePom.scm(
-				(sourceScm) -> {
-					targetPom.scm(
-							(targetScm) -> {
-								injectPomString( sourceScm.getConnection(), targetScm.getConnection(), () -> null );
-								injectPomString( sourceScm.getDeveloperConnection(), targetScm.getDeveloperConnection(), () -> null );
-								injectPomString( sourceScm.getUrl(), targetScm.getUrl(), () -> null );
-								injectPomString( sourceScm.getTag(), targetScm.getTag(), () -> null );
-							}
-					);
-				}
-		);
-
-		sourcePom.issueManagement(
-				(sourceIssueTracker) -> {
-					targetPom.issueManagement(
-							(targetIssueTracker) -> {
-								injectPomString( sourceIssueTracker.getSystem(), targetIssueTracker.getSystem(), () -> null );
-								injectPomString( sourceIssueTracker.getUrl(), targetIssueTracker.getUrl(), () -> null );
-							}
-					);
-				}
-		);
-
-		sourcePom.developers(
-				(sourceDevelopers) -> {
-					targetPom.developers(
-							(targetDevelopers) -> {
-								sourceDevelopers.developer(
-										(sourceDeveloper) -> {
-											targetDevelopers.developer(
-													(targetDeveloper) -> {
-														injectPomString( sourceDeveloper.getId(), targetDeveloper.getId(), () -> null );
-														injectPomString( sourceDeveloper.getName(), targetDeveloper.getName(), () -> null );
-														injectPomString( sourceDeveloper.getUrl(), targetDeveloper.getUrl(), () -> null );
-														injectPomString( sourceDeveloper.getEmail(), targetDeveloper.getEmail(), () -> null );
-														injectPomString( sourceDeveloper.getTimezone(), targetDeveloper.getTimezone(), () -> null );
-														injectPomString( sourceDeveloper.getOrganization(), targetDeveloper.getOrganization(), () -> null );
-														injectPomString( sourceDeveloper.getOrganizationUrl(), targetDeveloper.getOrganizationUrl(), () -> null );
-
-														targetDeveloper.getRoles().addAll( sourceDeveloper.getRoles() );
-														targetDeveloper.getProperties().putAll( sourceDeveloper.getProperties() );
-													}
-											);
-										}
-								);
-
-							}
-					);
-				}
-		);
-
-
-		// Ugh...
-		targetPom.withXml(
-				(xml) -> {
-					final Node rootNode = xml.asNode();
-					final Node dependenciesNode = rootNode.appendNode( "dependencies" );
-					applyDependencies( dependenciesNode, compileDependencies, "compile" );
-					applyDependencies( dependenciesNode, runtimeDependencies, "runtime" );
-				}
-		);
-	}
-
-	private void injectPomString(
-			Property<String> sourceProperty,
-			Property<String> targetProperty,
-			Supplier<String> defaultValueAccess) {
-		if ( targetProperty.isPresent() ) {
-			return;
-		}
-
-		if ( sourceProperty.isPresent() ) {
-			targetProperty.set( "(shadowed) " + sourceProperty.get() );
-		}
-		else {
-			targetProperty.set( defaultValueAccess.get() );
-		}
-	}
-
-	private void applyDependencies(Node dependenciesNode, Configuration dependencies, String scope) {
-		final ResolvedConfiguration resolvedCompileDependencies = dependencies.getResolvedConfiguration();
-		resolvedCompileDependencies.getFirstLevelModuleDependencies().forEach(
-				(resolvedDependency) -> {
-					final Node dependencyNode = dependenciesNode.appendNode( "dependency" );
-					dependencyNode.appendNode( "groupId" ).setValue( resolvedDependency.getModuleGroup() );
-					dependencyNode.appendNode( "artifactId" ).setValue( resolvedDependency.getModuleName() );
-					dependencyNode.appendNode( "version" ).setValue( resolvedDependency.getModuleVersion() );
-					dependencyNode.appendNode( "scope" ).setValue( scope );
-				}
-		);
-
 	}
 
 	private IvyPublication getMainSourceIvyPublication(PublicationContainer publications) {
@@ -403,7 +246,13 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 	}
 
 	private LocalProjectShadowTestsSpec createTestShadowSpec() {
-		return new LocalProjectShadowTestsSpec( sourceProject, targetProject, transformerConfig );
+		return new LocalProjectShadowTestsSpec(
+				sourceProject,
+				targetProject,
+				compileScopeDependencies,
+				runtimeScopeDependencies,
+				transformerConfig
+		);
 	}
 
 	@Override

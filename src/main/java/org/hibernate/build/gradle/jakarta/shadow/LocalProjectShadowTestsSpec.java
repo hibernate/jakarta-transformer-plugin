@@ -50,32 +50,29 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 	public LocalProjectShadowTestsSpec(
 			Project sourceProject,
 			Project targetProject,
+			Configuration compileScope,
+			Configuration runtimeScope,
 			TransformerConfig transformerConfig) {
 		this.sourceProject = sourceProject;
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		runnerTask = createTestTask();
-		runnerTask.doFirst(
-				new Action<Task>() {
-					@Override
-					public void execute(Task testTask) {
-						targetProject.getLogger().debug( "############################################################" );
-						targetProject.getLogger().debug( " `:{shadow}:test` task classpath..." );
-						targetProject.getLogger().debug( "############################################################" );
-						runnerTask.getClasspath().forEach(
-								(cpEntry) -> targetProject.getLogger().debug( "   > {}", cpEntry.getAbsolutePath() )
-						);
-						targetProject.getLogger().debug( "############################################################" );
-						targetProject.getLogger().debug( "############################################################" );
-					}
-				}
-		);
+		runnerTask = createTestTask( compileScope, runtimeScope );
 	}
 
-	private Test createTestTask() {
-		final Configuration testRuntimeClasspath = targetProject.getConfigurations().maybeCreate( "testRuntimeClasspath" );
-		shadowConfiguration( "testRuntimeClasspath" );
+	private Test createTestTask(Configuration compileScope, Configuration runtimeScope) {
+		final Configuration testCompileScope = targetProject.getConfigurations().maybeCreate( "testCompileScope" );
+		testCompileScope.extendsFrom( compileScope );
+
+		final Configuration testRuntimeScope = targetProject.getConfigurations().maybeCreate( "testRuntimeScope" );
+		testRuntimeScope.extendsFrom( compileScope );
+		testRuntimeScope.extendsFrom( runtimeScope );
+
+		final Configuration sourceTestCompileClasspath = sourceProject.getConfigurations().getByName( "testCompileClasspath" );
+		final Configuration sourceTestRuntimeClasspath = sourceProject.getConfigurations().getByName( "testRuntimeClasspath" );
+		shadowConfiguration( sourceTestCompileClasspath, testCompileScope );
+		shadowConfiguration( sourceTestRuntimeClasspath, testRuntimeScope );
+		shadowConfiguration( sourceTestCompileClasspath, testRuntimeScope );
 
 		final SourceSet sourceTestSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "test" );
 
@@ -103,7 +100,8 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		//	* test resources shadow output
 		final FileTransformationTask shadowJarTask = (FileTransformationTask) targetProject.getTasks().getByName( "shadowJar" );
 		runnerTask.setClasspath(
-				testRuntimeClasspath.plus( targetProject.files( shadowJarTask.getOutput() ) )
+				testRuntimeScope
+						.plus( targetProject.files( shadowJarTask.getOutput() ) )
 						.plus( targetProject.files( javaTransformationTask.getOutput() ) )
 						.plus( targetProject.files( resourcesTransformationTask.getOutput() ) )
 		);
@@ -196,10 +194,9 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		return resourcesTransformationTask;
 	}
 
-	private void shadowConfiguration(String configurationName) {
-		Helper.shadowConfiguration( configurationName, sourceProject, targetProject, transformerConfig );
+	private void shadowConfiguration(Configuration sourceConfiguration, Configuration targetConfiguration) {
+		Helper.shadowConfiguration( sourceConfiguration, targetConfiguration, targetProject, transformerConfig );
 
-		final Configuration targetConfiguration = targetProject.getConfigurations().getByName( configurationName );
 		targetConfiguration.getResolutionStrategy().dependencySubstitution(
 				(dependencySubstitutions) -> {
 					dependencySubstitutions.substitute( dependencySubstitutions.project( sourceProject.getPath() ) )

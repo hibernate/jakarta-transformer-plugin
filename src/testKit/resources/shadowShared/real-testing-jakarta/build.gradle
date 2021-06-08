@@ -1,0 +1,22 @@
+// mimics `hibernate-testing-jakarta`
+
+plugins {
+    id 'base'
+    id 'org.hibernate.jakarta-transformer'
+}
+
+apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
+
+jakartaTransformation {
+
+    dependencyResolutions {
+        dependencySubstitution {
+            substitute project(':real') with project(':real-jakarta')
+        }
+    }
+
+    shadow( project( ':real-testing' ) ) {
+        withJavadoc()
+        withSources()
+    }
+}

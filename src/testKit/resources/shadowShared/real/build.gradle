@@ -1,0 +1,23 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+apply from: rootProject.file('gradle/libraries.gradle')
+
+dependencies {
+    api libraries.jpa
+//    implementation libraries.jta
+
+    testImplementation project( ':real-testing' )
+
+    testRuntimeOnly libraries.junit5_jupiter_engine
+}
+
+publishing {
+    publications {
+        mavenArtifacts(MavenPublication) {
+            from components.java
+        }
+    }
+}
