@@ -43,9 +43,17 @@ public class ShadowSharedTesting {
 	}
 
 	@Test
-	@Disabled
 	public void jakartaTestingTest(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", ":real-jakarta:test" ).build();
+
+		final BuildTask testResult = buildResult.task( ":real-jakarta:test" );
+		assertThat( testResult ).isNotNull();
+		assertThat( testResult.getOutcome() ).isEqualTo( TaskOutcome.SUCCESS );
+	}
+
+	@Test
+	public void jakartaTestingTest2(ProjectScope scope) {
+		final BuildResult buildResult = scope.createGradleRunner( "clean", ":real-testing-jakarta:assemble", ":real-jakarta:test" ).build();
 
 		final BuildTask testResult = buildResult.task( ":real-jakarta:test" );
 		assertThat( testResult ).isNotNull();

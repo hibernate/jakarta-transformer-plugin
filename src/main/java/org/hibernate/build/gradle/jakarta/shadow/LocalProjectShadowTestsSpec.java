@@ -8,7 +8,9 @@ import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.file.Directory;
+import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -50,33 +52,32 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 	public LocalProjectShadowTestsSpec(
 			Project sourceProject,
 			Project targetProject,
-			Configuration compileScope,
-			Configuration runtimeScope,
 			TransformerConfig transformerConfig) {
 		this.sourceProject = sourceProject;
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		runnerTask = createTestTask( compileScope, runtimeScope );
+		runnerTask = createTestTask();
 	}
 
-	private Test createTestTask(Configuration compileScope, Configuration runtimeScope) {
-		final Configuration testCompileScope = targetProject.getConfigurations().maybeCreate( "testCompileScope" );
-		testCompileScope.extendsFrom( compileScope );
+	private Test createTestTask() {
+		final Task groupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
 
-		final Configuration testRuntimeScope = targetProject.getConfigurations().maybeCreate( "testRuntimeScope" );
-		testRuntimeScope.extendsFrom( compileScope );
-		testRuntimeScope.extendsFrom( runtimeScope );
+		final Test runnerTask = targetProject.getTasks().maybeCreate( "test", Test.class );
+		runnerTask.dependsOn( groupingTask );
 
-		final Configuration sourceTestCompileClasspath = sourceProject.getConfigurations().getByName( "testCompileClasspath" );
-		final Configuration sourceTestRuntimeClasspath = sourceProject.getConfigurations().getByName( "testRuntimeClasspath" );
-		shadowConfiguration( sourceTestCompileClasspath, testCompileScope );
-		shadowConfiguration( sourceTestRuntimeClasspath, testRuntimeScope );
-		shadowConfiguration( sourceTestCompileClasspath, testRuntimeScope );
+		final JavaLibraryPlugin javaLibraryPlugin = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class );
+		if ( javaLibraryPlugin != null ) {
+			shadowConfiguration( "testImplementation", runnerTask );
+			shadowConfiguration( "testCompileOnly", runnerTask );
+			shadowConfiguration( "testRuntimeOnly", runnerTask );
+		}
+		else {
+			shadowConfiguration( "testCompile", runnerTask );
+			shadowConfiguration( "testRuntime", runnerTask );
+		}
 
 		final SourceSet sourceTestSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "test" );
-
-		final Task groupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
 
 		final DirectoryTransformationTask javaTransformationTask = createJavaTransformationTask(
 				sourceProject,
@@ -91,19 +92,15 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				groupingTask
 		);
 
-		final Test runnerTask = targetProject.getTasks().maybeCreate( "test", Test.class );
-		runnerTask.dependsOn( groupingTask );
 
 		// prepare the Test task's classpath.  add:
 		// 	* shadowJar output
 		//	* test java shadow output
 		//	* test resources shadow output
 		final FileTransformationTask shadowJarTask = (FileTransformationTask) targetProject.getTasks().getByName( "shadowJar" );
+		runnerTask.getInputs().file( shadowJarTask.getOutput() );
 		runnerTask.setClasspath(
-				testRuntimeScope
-						.plus( targetProject.files( shadowJarTask.getOutput() ) )
-						.plus( targetProject.files( javaTransformationTask.getOutput() ) )
-						.plus( targetProject.files( resourcesTransformationTask.getOutput() ) )
+				targetProject.files( shadowJarTask.getOutput() ).plus( runnerTask.getClasspath() )
 		);
 
 		// prepare the Test task's classes dir (for test discovery)
@@ -111,10 +108,10 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				targetProject.files( javaTransformationTask.getOutput(), resourcesTransformationTask.getOutput() )
 		);
 
-		// prepare the Test task's outputs
-		runnerTask.getBinaryResultsDirectory().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test/binary" ) );
-		runnerTask.getReports().getJunitXml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "reports/tests/test" ) );
-		runnerTask.getReports().getHtml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test" ) );
+//		// prepare the Test task's outputs
+//		runnerTask.getBinaryResultsDirectory().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test/binary" ) );
+//		runnerTask.getReports().getJunitXml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "reports/tests/test" ) );
+//		runnerTask.getReports().getHtml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test" ) );
 
 		// todo : realistically we probably need to copy over stuff like jvm-args, etc...
 		//		although we could simply let user do that in the target-project build script
@@ -194,17 +191,34 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		return resourcesTransformationTask;
 	}
 
-	private void shadowConfiguration(Configuration sourceConfiguration, Configuration targetConfiguration) {
-		Helper.shadowConfiguration( sourceConfiguration, targetConfiguration, targetProject, transformerConfig );
+	private void shadowConfiguration(String name, Task targetTask) {
+		final Configuration source = sourceProject.getConfigurations().getByName( name );
+		final Configuration target = targetProject.getConfigurations().getByName( name );
 
-		targetConfiguration.getResolutionStrategy().dependencySubstitution(
-				(dependencySubstitutions) -> {
-					dependencySubstitutions.substitute( dependencySubstitutions.project( sourceProject.getPath() ) )
-							.with( dependencySubstitutions.project( targetProject.getPath() ) );
+		transformerConfig.applyDependencyResolutionStrategy( target );
+
+		Helper.shadowConfiguration(
+				source,
+				target,
+				targetProject,
+				(dependency) -> {
+					if ( dependency instanceof ProjectDependency ) {
+						final ProjectDependency projectDependency = (ProjectDependency) dependency;
+						final Project dependencyProject = projectDependency.getDependencyProject();
+
+						targetProject.getLogger().lifecycle( "####################################################" );
+						targetProject.getLogger().lifecycle( "ProjectDependency tasks : {}", dependencyProject.getPath() );
+						targetProject.getLogger().lifecycle( "####################################################" );
+						dependencyProject.getTasks().forEach(
+								task -> targetProject.getLogger().lifecycle( "   > {} ({})", task.getName(), task.getClass().getName() )
+						);
+						//targetTask.dependsOn( dependencyProject.getTasks().getByName( "jar" ) );
+						targetProject.getLogger().lifecycle( "####################################################" );
+						targetProject.getLogger().lifecycle( "" );
+					}
 				}
 		);
 	}
-
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// ShadowTestSpec

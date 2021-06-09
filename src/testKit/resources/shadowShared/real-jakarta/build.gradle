@@ -34,10 +34,11 @@ test {
         getLogger().lifecycle( "############################################################" );
         getLogger().lifecycle( "############################################################" );
 
-        renderDependencies(configurations.compileScope)
-        renderDependencies(configurations.runtimeScope)
-        renderDependencies(configurations.testCompileScope)
-        renderDependencies(configurations.testRuntimeScope)
+        renderDependencies(configurations.compileClasspath)
+        renderDependencies(configurations.runtimeClasspath)
+
+        renderDependencies(configurations.testCompileClasspath)
+        renderDependencies(configurations.testRuntimeClasspath)
     }
 }
 

@@ -4,7 +4,10 @@ import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.component.SoftwareComponent;
 import org.gradle.api.file.RegularFile;
+import org.gradle.api.plugins.JavaLibraryPlugin;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.Publication;
@@ -16,6 +19,7 @@ import org.gradle.api.publish.ivy.plugins.IvyPublishPlugin;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.util.ConfigureUtil;
 
@@ -38,12 +42,10 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 
 	private final Task groupingTask;
 
-	private final Configuration compileScopeDependencies;
-	private final Configuration runtimeScopeDependencies;
-
 	private MavenPublication shadowMavenPublication;
 	private IvyPublication shadowIvyPublication;
 
+	private SoftwareComponent softwareComponent;
 	private LocalProjectShadowTestsSpec testsSpec;
 
 
@@ -55,46 +57,66 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
-		compileScopeDependencies = targetProject.getConfigurations().maybeCreate( "compileScope" );
-		runtimeScopeDependencies = targetProject.getConfigurations().maybeCreate( "runtimeScope" );
-
-		shadowConfiguration( "compileClasspath", compileScopeDependencies );
-		shadowConfiguration( "runtimeClasspath", runtimeScopeDependencies );
-
 		groupingTask = targetProject.getTasks().create( SHADOW_GROUPING_TASK );
 		groupingTask.setGroup( TASK_GROUP );
+
+//		sourceProject.afterEvaluate( this::finishApplication );
+		finishApplication( targetProject );
+	}
+
+	private void finishApplication(Project p) {
+		final JavaLibraryPlugin javaLibraryPlugin = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class );
+		final JavaPlugin javaPlugin = sourceProject.getPlugins().findPlugin( JavaPlugin.class );
+
+		if ( javaLibraryPlugin != null ) {
+			targetProject.getPluginManager().apply( JavaLibraryPlugin.class );
+			shadowConfiguration( "api" );
+			shadowConfiguration( "implementation" );
+			shadowConfiguration( "compileOnly" );
+			shadowConfiguration( "runtimeOnly" );
+		}
+		else {
+			assert javaPlugin != null;
+			targetProject.getPluginManager().apply( JavaPlugin.class );
+			shadowConfiguration( "compileClasspath" );
+			shadowConfiguration( "runtimeClasspath" );
+		}
+
+		final SourceSet targetMainSourceSet = Helper.extractSourceSets( targetProject ).getByName( "main" );
+
+		final Task targetCompileTask = targetProject.getTasks().getByName( targetMainSourceSet.getCompileJavaTaskName() );
+		targetCompileTask.setEnabled( false );
+
+		final Task targetResourcesTask = targetProject.getTasks().getByName( targetMainSourceSet.getProcessResourcesTaskName() );
+		targetResourcesTask.setEnabled( false );
+
+		final Jar targetJarTask = (Jar) targetProject.getTasks().getByName( targetMainSourceSet.getJarTaskName() );
+		targetJarTask.setEnabled( false );
 
 		final Task assembleTask = targetProject.getTasks().getByName( "assemble" );
 		assembleTask.dependsOn( groupingTask );
 
 		final SourceSet sourceMainSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "main" );
-		final Jar sourceProjectJarTask = (Jar) sourceProject.getTasks().getByName( sourceMainSourceSet.getJarTaskName() );
 
 		final ShadowPublishArtifact shadowPublishArtifact = createArtifactTransformationTask(
 				"shadowJar",
-				sourceProjectJarTask,
+				targetJarTask,
+				(Jar) sourceProject.getTasks().getByName( sourceMainSourceSet.getJarTaskName() ),
 				null,
 				transformerConfig,
 				targetProject
 		);
+		targetJarTask.dependsOn( shadowPublishArtifact );
 
 		final PublishingExtension sourcePublishingExtension = (PublishingExtension) sourceProject.getExtensions().findByName( "publishing" );
 		if ( sourcePublishingExtension != null ) {
 			final MavenPublishPlugin mavenPublishPlugin = sourceProject.getPlugins().findPlugin( MavenPublishPlugin.class );
 			if ( mavenPublishPlugin != null ) {
 				targetProject.getPluginManager().apply( MavenPublishPlugin.class );
-			}
 
-			final IvyPublishPlugin ivyPublishPlugin = sourceProject.getPlugins().findPlugin( IvyPublishPlugin.class );
-			if ( ivyPublishPlugin != null ) {
-				targetProject.getPluginManager().apply( IvyPublishPlugin.class );
-			}
+				final PublishingExtension publishingExtension = (PublishingExtension) targetProject.getExtensions().findByName( "publishing" );
+				assert publishingExtension != null;
 
-			final PublishingExtension publishingExtension = (PublishingExtension) targetProject.getExtensions().findByName( "publishing" );
-			assert publishingExtension != null;
-
-			// create the publication(s)
-			if ( mavenPublishPlugin != null ) {
 				final MavenPublication sourceMavenPublication = getMainSourceMavenPublication( sourcePublishingExtension.getPublications() );
 				shadowMavenPublication = publishingExtension.getPublications().create( "mavenShadowArtifacts", MavenPublication.class );
 				// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,16 +132,36 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 				);
 
 				// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-				PomHelper.copy( sourceProject, sourceMavenPublication.getPom(), targetProject, shadowMavenPublication.getPom(), compileScopeDependencies, runtimeScopeDependencies );
+				PomHelper.copy( sourceProject, sourceMavenPublication.getPom(), targetProject, shadowMavenPublication.getPom(), null, null );
 			}
 
+			final IvyPublishPlugin ivyPublishPlugin = sourceProject.getPlugins().findPlugin( IvyPublishPlugin.class );
 			if ( ivyPublishPlugin != null ) {
+				targetProject.getPluginManager().apply( IvyPublishPlugin.class );
+
+				final PublishingExtension publishingExtension = (PublishingExtension) targetProject.getExtensions().findByName( "publishing" );
+				assert publishingExtension != null;
+
 				final IvyPublication sourceIvyPublication = getMainSourceIvyPublication( sourcePublishingExtension.getPublications() );
 				shadowIvyPublication = publishingExtension.getPublications().create( "ivyShadowArtifacts", IvyPublication.class );
 				shadowIvyPublication.artifact( shadowPublishArtifact );
 				copy( sourceIvyPublication.getDescriptor(), shadowIvyPublication.getDescriptor() );
 			}
 		}
+	}
+
+	private void shadowConfiguration(String name) {
+		final Configuration source = sourceProject.getConfigurations().getByName( name );
+		final Configuration target = targetProject.getConfigurations().getByName( name );
+
+		transformerConfig.applyDependencyResolutionStrategy( target );
+
+		Helper.shadowConfiguration(
+				source,
+				target,
+				targetProject,
+				(dependency) -> {}
+		);
 	}
 
 	private MavenPublication getMainSourceMavenPublication(PublicationContainer publications) {
@@ -175,7 +217,8 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 
 	private ShadowPublishArtifact createArtifactTransformationTask(
 			String taskName,
-			Jar sourceProjectJarTask,
+			Jar jarTask,
+			Jar sourceJarTask,
 			String classifier,
 			TransformerConfig transformerConfig,
 			Project targetProject) {
@@ -184,23 +227,12 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 				FileTransformationTask.class,
 				transformerConfig
 		);
-		transformJarTask.dependsOn( sourceProjectJarTask );
+		transformJarTask.dependsOn( jarTask );
 		groupingTask.dependsOn( transformJarTask );
 
-		final Provider<RegularFile> sourceProjectJarFileAccess = sourceProjectJarTask.getArchiveFile();
+		final Provider<RegularFile> sourceProjectJarFileAccess = sourceJarTask.getArchiveFile();
 		transformJarTask.getSource().set( sourceProjectJarFileAccess );
-		transformJarTask.getOutput().convention(
-				targetProject.provider(
-						() -> {
-							final String jarFileName = Helper.determineJarFileName( targetProject, classifier );
-							return targetProject.getLayout()
-									.getBuildDirectory()
-									.dir( "libs" )
-									.get()
-									.file( jarFileName );
-						}
-				)
-		);
+		transformJarTask.getOutput().convention( jarTask.getArchiveFile() );
 
 		final ShadowPublishArtifact publishArtifact = new ShadowPublishArtifact(
 				targetProject.getName(),
@@ -210,11 +242,6 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		);
 
 		return publishArtifact;
-	}
-
-	private void shadowConfiguration(String sourceConfigurationName, Configuration targetConfiguration) {
-		final Configuration source = sourceProject.getConfigurations().getByName( sourceConfigurationName );
-		Helper.shadowConfiguration( source, targetConfiguration, targetProject, transformerConfig );
 	}
 
 	@Override
@@ -249,8 +276,6 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		return new LocalProjectShadowTestsSpec(
 				sourceProject,
 				targetProject,
-				compileScopeDependencies,
-				runtimeScopeDependencies,
 				transformerConfig
 		);
 	}
@@ -260,10 +285,18 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		final JavaPluginExtension sourceProjectJavaPluginExtension = (JavaPluginExtension) sourceProject.getExtensions().getByName( "java" );
 		sourceProjectJavaPluginExtension.withSourcesJar();
 
-		final Jar sourceProjectJarTask = (Jar) sourceProject.getTasks().getByName( "sourcesJar" );
+		final JavaPluginExtension targetProjectJavaPluginExtension = (JavaPluginExtension) targetProject.getExtensions().getByName( "java" );
+		targetProjectJavaPluginExtension.withSourcesJar();
+
+		final SourceSetContainer sourceSourceSets = Helper.extractSourceSets( sourceProject );
+		final Jar sourceProjectJarTask = (Jar) sourceProject.getTasks().getByName( sourceSourceSets.getByName( "main" ).getSourcesJarTaskName() );
+
+		final SourceSetContainer targetSourceSets = Helper.extractSourceSets( targetProject );
+		final Jar targetProjectJarTask = (Jar) targetProject.getTasks().getByName( targetSourceSets.getByName( "main" ).getSourcesJarTaskName() );
 
 		final ShadowPublishArtifact transformationArtifact = createArtifactTransformationTask(
 				"shadowSourcesJar",
+				targetProjectJarTask,
 				sourceProjectJarTask,
 				"sources",
 				transformerConfig,
@@ -289,10 +322,18 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		final JavaPluginExtension sourceProjectJavaPluginExtension = (JavaPluginExtension) sourceProject.getExtensions().getByName( "java" );
 		sourceProjectJavaPluginExtension.withJavadocJar();
 
-		final Jar sourceProjectJarTask = (Jar) sourceProject.getTasks().getByName( "javadocJar" );
+		final JavaPluginExtension targetProjectJavaPluginExtension = (JavaPluginExtension) targetProject.getExtensions().getByName( "java" );
+		targetProjectJavaPluginExtension.withJavadocJar();
+
+		final SourceSetContainer sourceSourceSets = Helper.extractSourceSets( sourceProject );
+		final Jar sourceProjectJarTask = (Jar) sourceProject.getTasks().getByName( sourceSourceSets.getByName( "main" ).getJavadocJarTaskName() );
+
+		final SourceSetContainer targetSourceSets = Helper.extractSourceSets( targetProject );
+		final Jar targetProjectJarTask = (Jar) targetProject.getTasks().getByName( targetSourceSets.getByName( "main" ).getJavadocJarTaskName() );
 
 		final ShadowPublishArtifact transformationArtifact = createArtifactTransformationTask(
 				"shadowJavadocJar",
+				targetProjectJarTask,
 				sourceProjectJarTask,
 				"javadoc",
 				transformerConfig,

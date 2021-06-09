@@ -1,6 +1,7 @@
 package org.hibernate.build.gradle.jakarta.internal;
 
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -22,26 +23,11 @@ public class Helper {
 		// disallow direct instantiation
 	}
 
-	@SuppressWarnings("UnusedReturnValue")
-	public static void shadowConfiguration(
-			String configurationName,
-			Project sourceProject,
-			Project targetProject,
-			TransformerConfig transformerConfig) {
-		final Configuration sourceConfiguration = sourceProject.getConfigurations().getByName( configurationName );
-		final Configuration shadowConfiguration = targetProject.getConfigurations().getByName( configurationName );
-
-		shadowConfiguration( sourceConfiguration, shadowConfiguration, targetProject, transformerConfig );
-	}
-
 	public static void shadowConfiguration(
 			Configuration source,
 			Configuration target,
 			Project targetProject,
-			TransformerConfig transformerConfig) {
-		// technically should already have the substitutions applied, but be sure..
-		transformerConfig.applyDependencyResolutionStrategy( target );
-
+			Consumer<Dependency> dependencyConsumer) {
 		final DependencySet sourceDependencies = source.getAllDependencies();
 
 		targetProject.getLogger().lifecycle( "###############################################################" );
@@ -51,7 +37,8 @@ public class Helper {
 		sourceDependencies.forEach(
 				(dependency) -> {
 					targetProject.getLogger().lifecycle( "    > {}", dependencyNotation( dependency ) );
-					shadowDependenciesHandler.add( target.getName(), dependency );
+					final Dependency added = shadowDependenciesHandler.add( target.getName(), dependency );
+					dependencyConsumer.accept( added );
 				}
 		);
 		targetProject.getLogger().lifecycle( "###############################################################" );

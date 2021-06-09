@@ -126,15 +126,15 @@ public class PomHelper {
 		);
 
 
-		// Ugh...
-		targetPom.withXml(
-				(xml) -> {
-					final Node rootNode = xml.asNode();
-					final Node dependenciesNode = rootNode.appendNode( "dependencies" );
-					applyDependencies( dependenciesNode, compileDependencies, "compile" );
-					applyDependencies( dependenciesNode, runtimeDependencies, "runtime" );
-				}
-		);
+//		// Ugh...
+//		targetPom.withXml(
+//				(xml) -> {
+//					final Node rootNode = xml.asNode();
+//					final Node dependenciesNode = rootNode.appendNode( "dependencies" );
+//					applyDependencies( dependenciesNode, compileDependencies, "compile" );
+//					applyDependencies( dependenciesNode, runtimeDependencies, "runtime" );
+//				}
+//		);
 	}
 
 	private static void injectPomString(

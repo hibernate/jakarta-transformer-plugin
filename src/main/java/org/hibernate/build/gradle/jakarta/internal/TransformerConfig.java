@@ -2,8 +2,9 @@ package org.hibernate.build.gradle.jakarta.internal;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -12,9 +13,9 @@ import org.gradle.api.file.Directory;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.Nested;
 
 import org.hibernate.build.gradle.jakarta.TransformationException;
+
 
 /**
  * Information shared across transformations
@@ -31,6 +32,7 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	private final Provider<RegularFile> directRules;
 
 	private final List<Substitutions> substitutions = new ArrayList<>();
+	private Map<Project, Project> shadowedProjectMap = new HashMap<>();
 
 	private TransformerTool transformerTool;
 
@@ -48,9 +50,7 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 		this.directRules = directRules;
 
 		project.afterEvaluate(
-				(p) -> {
-					transformerTool = new TransformerTool( jakartaToolDependencies, this, p );
-				}
+				(p) -> transformerTool = new TransformerTool( jakartaToolDependencies, this, p )
 		);
 	}
 
@@ -101,5 +101,21 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	@FunctionalInterface
 	public interface Substitutions {
 		void applySubstitutions(ResolutionStrategy resolutionStrategy);
+	}
+
+	public void registerShadowedProject(Project sourceProject, Project shadowProject) {
+		shadowedProjectMap.put( sourceProject, shadowProject );
+
+		addSubstitutions(
+				(resolutionStrategy) -> resolutionStrategy.dependencySubstitution(
+						(substitutions) -> substitutions
+								.substitute( substitutions.project( sourceProject.getPath() ) )
+								.with( substitutions.project( shadowProject.getPath() ) )
+				)
+		);
+	}
+
+	public Project getShadowedProject(Project sourceProject) {
+		return shadowedProjectMap.get( sourceProject );
 	}
 }
