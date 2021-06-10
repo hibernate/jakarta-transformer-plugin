@@ -1,0 +1,13 @@
+plugins {
+    id 'java-library'
+    id 'org.hibernate.jakarta-transformer'
+}
+
+apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
+
+jakartaTransformation {
+    shadow( project( ':hibernate-testing' ) ) {
+        withJavadoc()
+        withSources()
+    }
+}

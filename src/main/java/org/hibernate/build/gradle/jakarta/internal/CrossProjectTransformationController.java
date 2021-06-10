@@ -8,6 +8,7 @@ import java.util.Map;
 import org.gradle.BuildAdapter;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.invocation.Gradle;
 
 import static org.hibernate.build.gradle.jakarta.shadow.ShadowTestSpec.SHADOW_TEST_JAVA_TASK;
@@ -33,15 +34,50 @@ public class CrossProjectTransformationController {
 		return controller;
 	}
 
+	private final List<Substitutions> substitutions = new ArrayList<>();
 	private final Map<Project, Project> shadowedProjectMap = new HashMap<>();
 	private final ProjectDependencyCallbackManager dependencyCallbackManager;
 
 	public CrossProjectTransformationController(Project rootProject) {
-		dependencyCallbackManager = new ProjectDependencyCallbackManager( rootProject );
+		dependencyCallbackManager = new ProjectDependencyCallbackManager();
+
+		rootProject.getGradle().addBuildListener(
+				new BuildAdapter() {
+					@Override
+					public void projectsEvaluated(Gradle gradle) {
+						dependencyCallbackManager.handleProjectDependencies();
+
+						shadowedProjectMap.forEach(
+								(source, shadowed) -> shadowed.getConfigurations().all(
+										(configuration) -> substitutions.forEach(
+												(substitution) -> substitution.applySubstitutions( configuration.getResolutionStrategy() )
+										)
+								)
+						);
+					}
+				}
+		);
+	}
+
+	public void addSubstitutions(Substitutions substitutions) {
+		this.substitutions.add( substitutions );
 	}
 
 	public void registerShadowedProject(Project sourceProject, Project shadowProject) {
 		shadowedProjectMap.put( sourceProject, shadowProject );
+		addSubstitutions(
+				(resolutionStrategy) -> resolutionStrategy.dependencySubstitution(
+						(substitutions) -> substitutions
+								.substitute( substitutions.project( sourceProject.getPath() ) )
+								.with( substitutions.project( shadowProject.getPath() ) )
+				)
+		);
+	}
+
+	public void applyDependencyResolutionStrategy(Configuration configuration) {
+		for ( Substitutions substitution : substitutions ) {
+			substitution.applySubstitutions( configuration.getResolutionStrategy() );
+		}
 	}
 
 	public Project getShadowedProject(Project sourceProject) {
@@ -55,15 +91,7 @@ public class CrossProjectTransformationController {
 	private class ProjectDependencyCallbackManager {
 		private final List<ProjectDependencyCallbackHandler> handlers = new ArrayList<>();
 
-		public ProjectDependencyCallbackManager(Project rootProject) {
-			rootProject.getGradle().addBuildListener(
-					new BuildAdapter() {
-						@Override
-						public void projectsEvaluated(Gradle gradle) {
-							handleProjectDependencies();
-						}
-					}
-			);
+		public ProjectDependencyCallbackManager() {
 		}
 
 		private void registerCallback(Project targetProject, List<Project> dependedOnProjects) {

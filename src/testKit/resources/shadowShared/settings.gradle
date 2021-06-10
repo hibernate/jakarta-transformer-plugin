@@ -1,5 +1,8 @@
-include 'real'
-include 'real-testing'
+include 'hibernate-core'
+include 'hibernate-envers'
+include 'hibernate-testing'
 
-include 'real-jakarta'
-include 'real-testing-jakarta'
+include 'hibernate-core-jakarta'
+include 'hibernate-envers-jakarta'
+include 'hibernate-testing-jakarta'
+

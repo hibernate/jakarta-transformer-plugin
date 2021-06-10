@@ -4,7 +4,6 @@ import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.component.SoftwareComponent;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
@@ -45,7 +44,6 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 	private MavenPublication shadowMavenPublication;
 	private IvyPublication shadowIvyPublication;
 
-	private SoftwareComponent softwareComponent;
 	private LocalProjectShadowTestsSpec testsSpec;
 
 
@@ -62,7 +60,6 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		groupingTask = targetProject.getTasks().create( SHADOW_GROUPING_TASK );
 		groupingTask.setGroup( TASK_GROUP );
 
-//		sourceProject.afterEvaluate( this::finishApplication );
 		finishApplication();
 	}
 

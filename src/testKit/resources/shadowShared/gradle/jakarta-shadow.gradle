@@ -12,8 +12,9 @@ jakartaTransformation {
             substitute module( libraries.jpa ) with module( libraries.jakarta_jpa )
             substitute module( libraries.jta ) with module( libraries.jakarta_jta )
 
-            substitute project(':real') with project(':real-jakarta')
-            substitute project(':real-testing') with project(':real-testing-jakarta')
+//            substitute project(':hibernate-core') with project(':hibernate-core-jakarta')
+//            substitute project(':hibernate-envers') with project(':hibernate-envers-jakarta')
+//            substitute project(':hibernate-testing') with project(':hibernate-testing-jakarta')
         }
     }
 }

@@ -1,20 +1,12 @@
-// mimics `hibernate-core-jakarta`
-
 plugins {
+    id 'java-library'
     id 'org.hibernate.jakarta-transformer'
 }
 
 apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
 
 jakartaTransformation {
-
-    dependencyResolutions {
-        dependencySubstitution {
-            substitute project(':real-testing') with project(':real-testing-jakarta')
-        }
-    }
-
-    shadow( project( ':real' ) ) {
+    shadow( project( ':hibernate-core' ) ) {
         runTests {
             useJUnitPlatform()
         }

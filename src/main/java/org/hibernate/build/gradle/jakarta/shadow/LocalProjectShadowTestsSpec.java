@@ -235,7 +235,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		);
 
 		if ( ! dependencyProjects.isEmpty() ) {
-			transformerConfig.registerProjectDependencies( targetProject, dependencyProjects );
+			transformerConfig.registerShadowTestProjectDependencies( targetProject, dependencyProjects );
 		}
 	}
 

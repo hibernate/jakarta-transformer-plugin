@@ -1,12 +1,10 @@
 package org.hibernate.build.gradle.jakarta.internal;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ResolutionStrategy;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
@@ -28,8 +26,6 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	private final Provider<RegularFile> renameRules;
 	private final Provider<RegularFile> versionRules;
 	private final Provider<RegularFile> directRules;
-
-	private final List<Substitutions> substitutions = new ArrayList<>();
 
 	private final CrossProjectTransformationController crossProjectTransformationController;
 	private TransformerTool transformerTool;
@@ -81,13 +77,11 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	}
 
 	public void addSubstitutions(Substitutions substitutions) {
-		this.substitutions.add( substitutions );
+		crossProjectTransformationController.addSubstitutions( substitutions );
 	}
 
 	public void applyDependencyResolutionStrategy(Configuration configuration) {
-		for ( Substitutions substitution : substitutions ) {
-			substitution.applySubstitutions( configuration.getResolutionStrategy() );
-		}
+		crossProjectTransformationController.applyDependencyResolutionStrategy( configuration );
 	}
 
 	@Override
@@ -98,27 +92,12 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 		return transformerTool;
 	}
 
-	@FunctionalInterface
-	public interface Substitutions {
-		void applySubstitutions(ResolutionStrategy resolutionStrategy);
-	}
 
 	public void registerShadowedProject(Project sourceProject, Project shadowProject) {
 		crossProjectTransformationController.registerShadowedProject( sourceProject, shadowProject );
-		addSubstitutions(
-				(resolutionStrategy) -> resolutionStrategy.dependencySubstitution(
-						(substitutions) -> substitutions
-								.substitute( substitutions.project( sourceProject.getPath() ) )
-								.with( substitutions.project( shadowProject.getPath() ) )
-				)
-		);
 	}
 
-	public Project getShadowedProject(Project sourceProject) {
-		return crossProjectTransformationController.getShadowedProject( sourceProject );
-	}
-
-	public void registerProjectDependencies(Project targetProject, List<Project> dependencyProjects) {
+	public void registerShadowTestProjectDependencies(Project targetProject, List<Project> dependencyProjects) {
 		crossProjectTransformationController.registerProjectDependencies( targetProject, dependencyProjects );
 	}
 

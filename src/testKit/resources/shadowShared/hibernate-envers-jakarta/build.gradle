@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+    id 'org.hibernate.jakarta-transformer'
+}
+
+apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
+
+jakartaTransformation {
+    shadow( project( ':hibernate-envers' ) ) {
+        withJavadoc()
+        withSources()
+    }
+}
+
+compileJava {
+    doFirst {
+        getLogger().lifecycle("`{}` compile-classpath", test.path)
+        compileJava.getClasspath().forEach {
+            getLogger().lifecycle("   -> {}", it.getAbsolutePath())
+        }
+    }
+}
+
+test {
+    doFirst {
+        getLogger().lifecycle("{} classpath", test.path)
+        tasks.test.getClasspath().forEach {
+            getLogger().lifecycle("   -> {}", it.getAbsolutePath())
+        }
+    }
+}

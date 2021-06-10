@@ -3,15 +3,18 @@ plugins {
     id 'maven-publish'
 }
 
+repositories {
+    mavenCentral()
+}
+
 apply from: rootProject.file('gradle/libraries.gradle')
 
 dependencies {
+    api project( ':hibernate-core' )
     api libraries.jpa
-//    implementation libraries.jta
-
-    testImplementation project( ':real-testing' )
-
-    testRuntimeOnly libraries.junit5_jupiter_engine
+    api libraries.jta
+    api libraries.junit5_api
+    api libraries.junit5_jupiter_engine
 }
 
 publishing {

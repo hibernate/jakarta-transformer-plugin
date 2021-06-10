@@ -29,23 +29,13 @@ public class Helper {
 			Consumer<Dependency> dependencyConsumer) {
 		final DependencySet sourceDependencies = source.getAllDependencies();
 
-//		targetProject.getLogger().lifecycle( "###############################################################" );
-//		targetProject.getLogger().lifecycle( "Shadowing source Configuration `{}` into ({}) `{}`", source.getName(), targetProject.getPath(), target.getName() );
-//		targetProject.getLogger().lifecycle( "###############################################################" );
 		final DependencyHandler shadowDependenciesHandler = targetProject.getDependencies();
 		sourceDependencies.forEach(
 				(dependency) -> {
-					targetProject.getLogger().lifecycle( "    > {}", dependencyNotation( dependency ) );
 					final Dependency added = shadowDependenciesHandler.add( target.getName(), dependency );
 					dependencyConsumer.accept( added );
 				}
 		);
-//		targetProject.getLogger().lifecycle( "###############################################################" );
-//		targetProject.getLogger().lifecycle( "###############################################################" );
-	}
-
-	private static String dependencyNotation(Dependency dependency) {
-		return dependency.getGroup() + ":" + dependency.getName() + ":" + dependency.getVersion();
 	}
 
 

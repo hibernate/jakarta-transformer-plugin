@@ -170,10 +170,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 
 	@Override
 	public void dependencyResolutions(Closure<ResolutionStrategy> closure) {
-		project.getConfigurations().all(
-				(configuration) -> ConfigureUtil.configure( closure, configuration.getResolutionStrategy() )
-		);
-
 		transformerConfig.addSubstitutions(
 				resolutionStrategy -> ConfigureUtil.configure( closure, resolutionStrategy )
 		);
@@ -181,10 +177,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 
 	@Override
 	public void dependencyResolutions(Action<ResolutionStrategy> strategyAction) {
-		project.getConfigurations().all(
-				(configuration) -> strategyAction.execute( configuration.getResolutionStrategy() )
-		);
-
 		transformerConfig.addSubstitutions( strategyAction::execute );
 	}
 
@@ -253,8 +245,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 
 	private DirectoryTransformationTask getDirectoryTransformationTask(String name) {
 		final String taskName = determineTransformationTaskName( name );
-		project.getLogger().lifecycle( "Creating directory transformation `{}` : `{}`", name, taskName );
-
 		DirectoryTransformationTask transformationTask = (DirectoryTransformationTask) project.getTasks().findByName( taskName );
 		if ( transformationTask == null ) {
 			transformationTask = project.getTasks().create(
@@ -290,8 +280,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 
 	private FileTransformationTask getFileTransformationTask(String transformationName) {
 		final String taskName = determineTransformationTaskName( transformationName );
-		project.getLogger().lifecycle( "Creating file transformation `{}` : `{}`", transformationName, taskName );
-
 		FileTransformationTask transformationTask = (FileTransformationTask) project.getTasks().findByName( taskName );
 		if ( transformationTask == null ) {
 			final FileTransformationTask task = project.getTasks().create(
@@ -310,7 +298,8 @@ public class TransformerSpecImpl implements TransformerSpec {
 								final String sourceFileName = source.getAsFile().getName();
 								final int extensionDelimiterLocation = sourceFileName.lastIndexOf( '.' );
 								String outputFileName = transformationName;
-								if ( project.getVersion() != null && ! "unspecified".equals( project.getVersion() ) ) {
+								project.getVersion();
+								if ( ! "unspecified".equals( project.getVersion() ) ) {
 									outputFileName += ( "-" + project.getVersion());
 								}
 								outputFileName += ( "." + sourceFileName.substring( extensionDelimiterLocation ) );

@@ -1,0 +1,39 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+apply from: rootProject.file('gradle/libraries.gradle')
+
+dependencies {
+    api project( ':hibernate-core' )
+
+    testImplementation project( ':hibernate-testing' )
+}
+
+
+compileJava {
+    doFirst {
+        getLogger().lifecycle("`{}` compile-classpath", test.path)
+        compileJava.getClasspath().forEach {
+            getLogger().lifecycle("   -> {}", it.getAbsolutePath())
+        }
+    }
+}
+
+test {
+    doFirst {
+        getLogger().lifecycle("{} test-runtime-classpath", test.path)
+        tasks.test.getClasspath().forEach {
+            getLogger().lifecycle("   -> {}", it.getAbsolutePath())
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenArtifacts(MavenPublication) {
+            from components.java
+        }
+    }
+}
