@@ -150,11 +150,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				new Action<Task>() {
 					@Override
 					public void execute(Task task) {
-						targetProject.getLogger().lifecycle( "###########################################" );
-						targetProject.getLogger().lifecycle( "Deleting shadow test-Java dir because... well... jakarta" );
-						targetProject.getLogger().lifecycle( "###########################################" );
 						javaTransformationTask.getOutput().getAsFile().get().delete();
-						targetProject.getLogger().lifecycle( "###########################################" );
 					}
 				}
 		);
@@ -183,11 +179,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				new Action<Task>() {
 					@Override
 					public void execute(Task task) {
-						targetProject.getLogger().lifecycle( "###########################################" );
-						targetProject.getLogger().lifecycle( "Deleting shadow test-resources dir because... well... jakarta" );
-						targetProject.getLogger().lifecycle( "###########################################" );
 						resourcesTransformationTask.getOutput().getAsFile().get().delete();
-						targetProject.getLogger().lifecycle( "###########################################" );
 					}
 				}
 		);

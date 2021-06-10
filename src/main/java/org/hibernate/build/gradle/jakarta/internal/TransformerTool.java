@@ -1,10 +1,13 @@
 package org.hibernate.build.gradle.jakarta.internal;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
-import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -15,7 +18,7 @@ import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 
-import org.hibernate.build.gradle.jakarta.TransformationException;
+import static java.time.format.DateTimeFormatter.ofPattern;
 
 /**
  * Performs transformations via reflective execution of the JakartaTransformer tool
@@ -24,12 +27,6 @@ import org.hibernate.build.gradle.jakarta.TransformationException;
  */
 public class TransformerTool {
 	public static final String TOOL_CLI_FQN = "org.eclipse.transformer.jakarta.JakartaTransformer";
-
-	public static final String TRANSFORMER_FQN = "org.eclipse.transformer.jakarta.JakartaTransformer";
-	public static final String TOOL_FQN = "org.eclipse.transformer.Transformer";
-	public static final String TOOL_OPTIONS_METHOD = "setOptionDefaults";
-	public static final String TOOL_ARGS_METHOD = "setArgs";
-	public static final String TOOL_RUN_METHOD = "run";
 
 	public interface Config {
 		Provider<RegularFile> renameRuleAccess();
@@ -41,8 +38,7 @@ public class TransformerTool {
 	private final Config config;
 	private final Project project;
 
-//	private final Object toolReference;
-//	private final Method runMethod;
+	private final RegularFile transformerLoggingOutput;
 
 	public TransformerTool(
 			Configuration toolDependencies,
@@ -52,8 +48,18 @@ public class TransformerTool {
 		this.config = config;
 		this.project = project;
 
+		final DateTimeFormatter formatter = ofPattern( "yyyy-MM-dd_HH-mm-ss" );
+
+		transformerLoggingOutput = project.getLayout()
+				.getBuildDirectory()
+				.dir( "tmp/jakarta-transformer-output" )
+				.get()
+				.dir( project.getName() )
+				.file( formatter.format( LocalDateTime.now() ) + ".txt" );
+
 // todo : would be nice to call Transformer directly, but
-//		- they require a Map keys by enums that are effectively Strings which, unfortunately, make it difficult to handle reflectively
+//		- they require a Map keys by enums that are effectively Strings.  But they still require use of the enums which,
+//			unfortunately, make it difficult to handle reflectively
 //		- they have odd calls, like you "set" the files and then call a no-arg method
 //  	:(
 //
@@ -81,48 +87,6 @@ public class TransformerTool {
 //		final Method argsMethod = resolveToolMethod( toolClass, TOOL_ARGS_METHOD, String[].class );
 //
 //		runMethod = resolveToolMethod( toolClass, TOOL_RUN_METHOD );
-	}
-
-	private Class<?> loadToolClass(String fqn, Configuration toolDependencies) {
-		final ClassLoader toolClassLoader = asClassLoader( toolDependencies );
-		try {
-			return toolClassLoader.loadClass( fqn );
-		}
-		catch (ClassNotFoundException e) {
-			throw new TransformationException(
-					"Unable to locate JakartaTransformer class : `" + TOOL_FQN + "`",
-					e
-			);
-		}
-	}
-
-	private ClassLoader asClassLoader(Configuration toolDependencies) {
-		final ArrayList<URL> urls = new ArrayList<>();
-		for ( File artifact : toolDependencies.resolve() ) {
-			try {
-				urls.add( artifact.toURI().toURL() );
-			}
-			catch (MalformedURLException e) {
-				throw new TransformationException(
-						"Unable to resolve artifact file as URL : " + artifact.getAbsolutePath(),
-						e
-				);
-			}
-		}
-
-		return new URLClassLoader( urls.toArray( new URL[0] ) );
-	}
-
-	private Method resolveToolMethod(Class<?> toolClass, String methodName, Class<?>... argTypes) {
-		try {
-			return toolClass.getMethod( methodName, argTypes );
-		}
-		catch (NoSuchMethodException e) {
-			throw new TransformationException(
-					"Unable to locate run method : `" + TOOL_FQN + "#" + TOOL_RUN_METHOD + "`",
-					e
-			);
-		}
 	}
 
 	public void transform(RegularFile sourceFile, RegularFile targetFile) {
@@ -158,35 +122,43 @@ public class TransformerTool {
 			args.add( config.directRuleAccess().get().getAsFile().getAbsolutePath() );
 		}
 
-		project.javaexec(
-				javaExecSpec -> {
-					javaExecSpec.classpath( toolDependencies );
 
-					javaExecSpec.setMain( TOOL_CLI_FQN );
+		try ( OutputStream outputStream = createOutputStream() ) {
+			project.javaexec(
+					javaExecSpec -> {
+						javaExecSpec.classpath( toolDependencies );
 
-					javaExecSpec.setArgs( args );
-				}
-		);
+						javaExecSpec.setMain( TOOL_CLI_FQN );
 
-//
-//		try {
-//			final int result = (int) runMethod.invoke( null, System.out, System.err, args.toArray( new String[0] ) );
-//			if ( result != 0 ) {
-//				throw new TransformationException(
-//						String.format(
-//								Locale.ROOT,
-//								"%s#%s returned non-zero result",
-//								TOOL_FQN,
-//								TOOL_RUN_METHOD
-//						)
-//				);
-//			}
-//		}
-//		catch (IllegalAccessException | InvocationTargetException e) {
-//			throw new TransformationException(
-//					"Unable to perform transformation on file : " + sourceFile.getAbsolutePath(),
-//					e
-//			);
-//		}
+						javaExecSpec.setArgs( args );
+
+						javaExecSpec.setStandardOutput( outputStream );
+						javaExecSpec.setErrorOutput( outputStream );
+					}
+			);
+		}
+		catch (IOException e) {
+			project.getLogger().debug( "Unable to close JakartaTransformer logging output stream" );
+		}
+	}
+
+	private OutputStream createOutputStream() {
+		final File outputAsFile = transformerLoggingOutput.getAsFile();
+		if ( ! outputAsFile.exists() ) {
+			outputAsFile.getParentFile().mkdirs();
+			try {
+				outputAsFile.createNewFile();
+			}
+			catch (IOException e) {
+				project.getLogger().info( "Unable to generate JakartaTransformer output file {}", outputAsFile.getAbsolutePath() );
+			}
+		}
+
+		try {
+			return new BufferedOutputStream( new FileOutputStream( outputAsFile, true ) );
+		}
+		catch (FileNotFoundException ignore) {
+			return null;
+		}
 	}
 }

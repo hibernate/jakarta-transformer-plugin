@@ -2,7 +2,7 @@
 
 image:https://github.com/hibernate/jakarta-transformer-plugin/actions/workflows/gradle.yml/badge.svg[Build Status,link=https://github.com/hibernate/jakarta-transformer-plugin/actions/workflows/gradle.yml]
 
-Plugin for integrating the `JakartaTransformer` tool into Gradle builds.
+Plugin for integrating the https://github.com/eclipse/transformer[JakartaTransformer] tool into Gradle builds.
 
 The main implemented case at the moment is that of "shadowing" (to play on the phrase "shade").
 Basically this allows a project to apply this plugin, point to a dependency, have the plugin
