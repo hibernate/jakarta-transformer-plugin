@@ -17,6 +17,9 @@ import groovy.lang.Closure;
 public interface ShadowSpec {
 	String TASK_GROUP = "shadow";
 	String SHADOW_GROUPING_TASK = "shadow";
+	String SHADOW_JAR_TASK = "shadowJar";
+	String SHADOW_SOURCES_JAR_TASK = "shadowSourcesJar";
+	String SHADOW_JAVADOC_JAR_TASK = "shadowJavadocJar";
 
 	/**
 	 * Transform the test dependency and run the transformed tests

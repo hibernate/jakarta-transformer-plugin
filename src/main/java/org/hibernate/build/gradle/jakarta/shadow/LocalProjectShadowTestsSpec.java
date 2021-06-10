@@ -1,5 +1,6 @@
 package org.hibernate.build.gradle.jakarta.shadow;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -10,6 +11,10 @@ import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.file.Directory;
+import org.gradle.api.internal.tasks.testing.TestFramework;
+import org.gradle.api.internal.tasks.testing.junit.JUnitTestFramework;
+import org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestFramework;
+import org.gradle.api.internal.tasks.testing.testng.TestNGTestFramework;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -58,23 +63,35 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		this.transformerConfig = transformerConfig;
 
 		runnerTask = createTestTask();
+
+		final Test sourceTestTask = (Test) sourceProject.getTasks().getByName( "test" );
+		final TestFramework sourceTestFramework = sourceTestTask.getTestFramework();
+		if ( sourceTestFramework instanceof JUnitTestFramework ) {
+			useJUnit();
+		}
+		else if ( sourceTestFramework instanceof JUnitPlatformTestFramework ) {
+			useJUnitPlatform();
+		}
+		else if ( sourceTestFramework instanceof TestNGTestFramework ) {
+			useTestNG();
+		}
 	}
 
 	private Test createTestTask() {
 		final Task groupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
 
-		final Test runnerTask = targetProject.getTasks().maybeCreate( "test", Test.class );
+		final Test runnerTask = (Test) targetProject.getTasks().getByName("test" );
 		runnerTask.dependsOn( groupingTask );
 
 		final JavaLibraryPlugin javaLibraryPlugin = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class );
 		if ( javaLibraryPlugin != null ) {
-			shadowConfiguration( "testImplementation", runnerTask );
-			shadowConfiguration( "testCompileOnly", runnerTask );
-			shadowConfiguration( "testRuntimeOnly", runnerTask );
+			shadowConfiguration( "testImplementation" );
+			shadowConfiguration( "testCompileOnly" );
+			shadowConfiguration( "testRuntimeOnly" );
 		}
 		else {
-			shadowConfiguration( "testCompile", runnerTask );
-			shadowConfiguration( "testRuntime", runnerTask );
+			shadowConfiguration( "testCompile" );
+			shadowConfiguration( "testRuntime" );
 		}
 
 		final SourceSet sourceTestSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "test" );
@@ -191,33 +208,35 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		return resourcesTransformationTask;
 	}
 
-	private void shadowConfiguration(String name, Task targetTask) {
+	private void shadowConfiguration(String name) {
 		final Configuration source = sourceProject.getConfigurations().getByName( name );
 		final Configuration target = targetProject.getConfigurations().getByName( name );
 
 		transformerConfig.applyDependencyResolutionStrategy( target );
 
+		final List<Project> dependencyProjects = new ArrayList<>();
 		Helper.shadowConfiguration(
 				source,
 				target,
 				targetProject,
 				(dependency) -> {
 					if ( dependency instanceof ProjectDependency ) {
+						// any project dependency found here might refer to a project that has a shadowed
+						// variant which we need to resolve manually in terms of task dependencies
+						//
+						// see `CrossProjectTransformationController`
+
 						final ProjectDependency projectDependency = (ProjectDependency) dependency;
 						final Project dependencyProject = projectDependency.getDependencyProject();
 
-						targetProject.getLogger().lifecycle( "####################################################" );
-						targetProject.getLogger().lifecycle( "ProjectDependency tasks : {}", dependencyProject.getPath() );
-						targetProject.getLogger().lifecycle( "####################################################" );
-						dependencyProject.getTasks().forEach(
-								task -> targetProject.getLogger().lifecycle( "   > {} ({})", task.getName(), task.getClass().getName() )
-						);
-						//targetTask.dependsOn( dependencyProject.getTasks().getByName( "jar" ) );
-						targetProject.getLogger().lifecycle( "####################################################" );
-						targetProject.getLogger().lifecycle( "" );
+						dependencyProjects.add( dependencyProject );
 					}
 				}
 		);
+
+		if ( ! dependencyProjects.isEmpty() ) {
+			transformerConfig.registerProjectDependencies( targetProject, dependencyProjects );
+		}
 	}
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

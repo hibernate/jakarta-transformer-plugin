@@ -19,47 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @author Steve Ebersole
  */
 @TestKit
-public class SmokeTest {
-	@Test
-	@Project("shadow")
-	public void testShadowDependency(ProjectScope scope) {
-		scope.createGradleRunner( "clean", "shadow" ).build();
-	}
+@Project("shadowMulti")
+public class ShadowMultiTesting {
 
 	@Test
-	@Project("shadow")
-	public void testShadowDependencyAssemble(ProjectScope scope) {
-		scope.createGradleRunner( "clean", "assemble" ).build();
-
-		final File baseDirectory = scope.getProjectBaseDirectory();
-
-		final File libsDir = new File( baseDirectory, "build/libs" );
-		assertTrue( libsDir.exists() );
-
-		final File[] files = libsDir.listFiles();
-		assertNotNull( files );
-		assertEquals( 3, files.length );
-
-		final File[] mainJarFiles = libsDir.listFiles( (dir, name) -> name.equals( "shadow-1.0.0-SNAPSHOT.jar" ) );
-		assertEquals( 1, mainJarFiles.length );
-
-		final File[] javadocJarFiles = libsDir.listFiles( (dir, name) -> name.equals( "shadow-1.0.0-SNAPSHOT-javadoc.jar" ) );
-		assertEquals( 1, javadocJarFiles.length );
-
-		final File[] sourcesJarFiles = libsDir.listFiles( (dir, name) -> name.endsWith( "shadow-1.0.0-SNAPSHOT-sources.jar" ) );
-		assertEquals( 1, sourcesJarFiles.length );
-	}
-
-// Need a dependency which publishes tests to verify this...
-//	@Test
-//	@Project("shadow")
-//	public void testShadowDependencyTests(ProjectScope scope) {
-//		scope.createGradleRunner( "clean", "runTransformedShadowTests" ).build();
-//	}
-
-	@Test
-	@Project("shadowMulti")
-	public void testShadowMulti(ProjectScope scope) {
+	public void testShadow(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", "shadow" ).build();
 
 		final BuildTask shadowTask = buildResult.task( ":real-jakarta:shadow" );
@@ -106,8 +70,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiCompile(ProjectScope scope) {
+	public void testShadowCompile(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", "compileJava", "processResources" ).build();
 
 		final BuildTask shadowTask = buildResult.task( ":real-jakarta:shadow" );
@@ -115,8 +78,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiAssemble(ProjectScope scope) {
+	public void testShadowAssemble(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", "assemble" ).build();
 
 		checkEachShadowTask( buildResult, TaskOutcome.SUCCESS );
@@ -124,8 +86,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiUpToDateChecks(ProjectScope scope) {
+	public void testShadowUpToDateChecks(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", "assemble" ).build();
 		final BuildTask assembleTaskResult = buildResult.task( ":real-jakarta:assemble" );
 		assertThat( assembleTaskResult ).isNotNull();
@@ -147,8 +108,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiRealTests(ProjectScope scope) {
+	public void testRealTests(ProjectScope scope) {
 		// baseline for tests.  Make sure the "real" tests work before trying the shadowed tests
 		final BuildResult buildResult = scope.createGradleRunner( ":real:clean", ":real:test" ).build();
 
@@ -166,8 +126,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiShadowTests(ProjectScope scope) {
+	public void testShadowTests(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", ":real-jakarta:test", "--info" ).build();
 
 		final BuildTask shadowTask = buildResult.task( ":real-jakarta:shadow" );
@@ -186,8 +145,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiShadowTestsUpToDateChecks(ProjectScope scope) {
+	public void testShadowTestsUpToDateChecks(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", ":real-jakarta:test", "--info" ).build();
 
 		final BuildTask testTask = buildResult.task( ":real-jakarta:test" );
@@ -201,8 +159,7 @@ public class SmokeTest {
 	}
 
 	@Test
-	@Project("shadowMulti")
-	public void testShadowMultiPom(ProjectScope scope) {
+	public void testShadowPom(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", "generatePomFileForMavenShadowArtifactsPublication", "--info" ).build();
 
 		final BuildTask shadowTask = buildResult.task( ":real-jakarta:generatePomFileForMavenShadowArtifactsPublication" );

@@ -62,7 +62,7 @@ public class ShadowSharedTesting {
 
 	@Test
 	public void showDependenciesTest(ProjectScope scope) {
-		scope.createGradleRunner( ":real-jakarta:dependencies", "--configuration", "testRuntimeScope" ).build();
+		scope.createGradleRunner( ":real-jakarta:dependencies", "--configuration", "testRuntimeClasspath" ).build();
 	}
 
 	@Test

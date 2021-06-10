@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
     id 'java-gradle-plugin'
-    id 'com.github.sebersole.testkit-junit5' version '0.9.6'
+    id 'com.github.sebersole.testkit-junit5' version '1.2.0'
 
     id 'com.gradle.plugin-publish' version '0.12.0'
     id 'nu.studer.credentials' version '2.1'
@@ -9,6 +9,8 @@ plugins {
 
 group 'org.hibernate.build'
 version '0.9.3-SNAPSHOT'
+
+buildDir 'target'
 
 ext {
     pluginId = 'org.hibernate.jakarta-transformer'

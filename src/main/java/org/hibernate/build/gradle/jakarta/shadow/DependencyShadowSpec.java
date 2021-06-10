@@ -165,7 +165,7 @@ public class DependencyShadowSpec implements ShadowSpec {
 		jarTask.dependsOn( javadocsTask );
 
 		final Task groupingTask = shadowProject.getTasks().getByName( SHADOW_GROUPING_TASK );
-		groupingTask.dependsOn( sourcesTask );
+		groupingTask.dependsOn( javadocsTask );
 	}
 
 	private Dependency getClassifiedVariant(String classifier) {

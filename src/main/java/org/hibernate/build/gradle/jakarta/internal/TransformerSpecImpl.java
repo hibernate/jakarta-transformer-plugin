@@ -31,6 +31,7 @@ import static org.hibernate.build.gradle.jakarta.TransformerPlugin.IMPLICIT_TOOL
  * @author Steve Ebersole
  */
 public class TransformerSpecImpl implements TransformerSpec {
+
 	private final Project project;
 	private final TransformerConfig transformerConfig;
 
@@ -51,7 +52,6 @@ public class TransformerSpecImpl implements TransformerSpec {
 					}
 				}
 		);
-
 		transformerConfig = new TransformerConfig(
 				transformerToolDependencies,
 				outputDir,

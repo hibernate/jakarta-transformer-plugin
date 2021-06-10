@@ -57,14 +57,16 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 		this.targetProject = targetProject;
 		this.transformerConfig = transformerConfig;
 
+		transformerConfig.registerShadowedProject( sourceProject, targetProject );
+
 		groupingTask = targetProject.getTasks().create( SHADOW_GROUPING_TASK );
 		groupingTask.setGroup( TASK_GROUP );
 
 //		sourceProject.afterEvaluate( this::finishApplication );
-		finishApplication( targetProject );
+		finishApplication();
 	}
 
-	private void finishApplication(Project p) {
+	private void finishApplication() {
 		final JavaLibraryPlugin javaLibraryPlugin = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class );
 		final JavaPlugin javaPlugin = sourceProject.getPlugins().findPlugin( JavaPlugin.class );
 

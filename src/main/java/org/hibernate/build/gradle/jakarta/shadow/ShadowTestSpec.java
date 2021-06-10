@@ -19,6 +19,9 @@ import groovy.lang.DelegatesTo;
  */
 @SuppressWarnings("unused")
 public interface ShadowTestSpec {
+	String SHADOW_TEST_JAVA_TASK = "shadowTestJava";
+	String SHADOW_TEST_RESOURCES_TASK = "shadowTestResources";
+
 	void useJUnit();
 	void useJUnit(Closure<JUnitOptions> testFrameworkConfigure);
 	void useJUnit(Action<JUnitOptions> testFrameworkConfigure);

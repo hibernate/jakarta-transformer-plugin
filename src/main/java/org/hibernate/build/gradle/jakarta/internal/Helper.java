@@ -11,7 +11,6 @@ import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.artifacts.ResolvedConfiguration;
 import org.gradle.api.artifacts.ResolvedDependency;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
-import org.gradle.api.file.Directory;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSetContainer;
 
@@ -30,9 +29,9 @@ public class Helper {
 			Consumer<Dependency> dependencyConsumer) {
 		final DependencySet sourceDependencies = source.getAllDependencies();
 
-		targetProject.getLogger().lifecycle( "###############################################################" );
-		targetProject.getLogger().lifecycle( "Shadowing source Configuration `{}` into ({}) `{}`", source.getName(), targetProject.getPath(), target.getName() );
-		targetProject.getLogger().lifecycle( "###############################################################" );
+//		targetProject.getLogger().lifecycle( "###############################################################" );
+//		targetProject.getLogger().lifecycle( "Shadowing source Configuration `{}` into ({}) `{}`", source.getName(), targetProject.getPath(), target.getName() );
+//		targetProject.getLogger().lifecycle( "###############################################################" );
 		final DependencyHandler shadowDependenciesHandler = targetProject.getDependencies();
 		sourceDependencies.forEach(
 				(dependency) -> {
@@ -41,20 +40,12 @@ public class Helper {
 					dependencyConsumer.accept( added );
 				}
 		);
-		targetProject.getLogger().lifecycle( "###############################################################" );
-		targetProject.getLogger().lifecycle( "###############################################################" );
+//		targetProject.getLogger().lifecycle( "###############################################################" );
+//		targetProject.getLogger().lifecycle( "###############################################################" );
 	}
 
 	private static String dependencyNotation(Dependency dependency) {
 		return dependency.getGroup() + ":" + dependency.getName() + ":" + dependency.getVersion();
-	}
-
-	public static Directory determineUnpackBaseDir(Project sourceProject, Project shadowProject) {
-		return shadowProject.getLayout()
-				.getBuildDirectory()
-				.dir( "generated/sources/jakarta/transform" )
-				.get()
-				.dir( sourceProject.getName() );
 	}
 
 
@@ -78,18 +69,4 @@ public class Helper {
 		return javaPluginConvention.getSourceSets();
 	}
 
-	public static String determineJarFileName(Project project, String classifier) {
-		String fileName = project.getName();
-
-		final String version = project.getVersion().toString();
-		if ( version != null && ! "unspecified".equals( version ) ) {
-			fileName += ( "-" + version );
-		}
-
-		if ( classifier != null ) {
-			fileName += ( "-" + classifier );
-		}
-
-		return fileName + ".jar";
-	}
 }

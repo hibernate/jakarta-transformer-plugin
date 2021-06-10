@@ -2,9 +2,7 @@ package org.hibernate.build.gradle.jakarta.internal;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -32,8 +30,8 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	private final Provider<RegularFile> directRules;
 
 	private final List<Substitutions> substitutions = new ArrayList<>();
-	private Map<Project, Project> shadowedProjectMap = new HashMap<>();
 
+	private final CrossProjectTransformationController crossProjectTransformationController;
 	private TransformerTool transformerTool;
 
 	public TransformerConfig(
@@ -48,6 +46,8 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 		this.renameRules = renameRules;
 		this.versionRules = versionRules;
 		this.directRules = directRules;
+
+		crossProjectTransformationController = CrossProjectTransformationController.apply( project );
 
 		project.afterEvaluate(
 				(p) -> transformerTool = new TransformerTool( jakartaToolDependencies, this, p )
@@ -104,8 +104,7 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	}
 
 	public void registerShadowedProject(Project sourceProject, Project shadowProject) {
-		shadowedProjectMap.put( sourceProject, shadowProject );
-
+		crossProjectTransformationController.registerShadowedProject( sourceProject, shadowProject );
 		addSubstitutions(
 				(resolutionStrategy) -> resolutionStrategy.dependencySubstitution(
 						(substitutions) -> substitutions
@@ -116,6 +115,11 @@ public class TransformerConfig implements TransformerTool.Config, TransformerToo
 	}
 
 	public Project getShadowedProject(Project sourceProject) {
-		return shadowedProjectMap.get( sourceProject );
+		return crossProjectTransformationController.getShadowedProject( sourceProject );
 	}
+
+	public void registerProjectDependencies(Project targetProject, List<Project> dependencyProjects) {
+		crossProjectTransformationController.registerProjectDependencies( targetProject, dependencyProjects );
+	}
+
 }
