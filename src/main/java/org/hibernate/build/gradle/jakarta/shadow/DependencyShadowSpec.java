@@ -81,6 +81,13 @@ public class DependencyShadowSpec implements ShadowSpec {
 	}
 
 	@Override
+	public void runTests() {
+		if ( testSpec == null ) {
+			testSpec = createTestSpec();
+		}
+	}
+
+	@Override
 	public void runTests(Action<ShadowTestSpec> specAction) {
 		if ( testSpec == null ) {
 			testSpec = createTestSpec();

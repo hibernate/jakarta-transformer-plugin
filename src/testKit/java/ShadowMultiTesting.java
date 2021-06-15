@@ -129,11 +129,9 @@ public class ShadowMultiTesting {
 	public void testShadowTests(ProjectScope scope) {
 		final BuildResult buildResult = scope.createGradleRunner( "clean", ":real-jakarta:test", "--info" ).build();
 
-		final BuildTask shadowTask = buildResult.task( ":real-jakarta:shadow" );
+		final BuildTask shadowTask = buildResult.task( ":real-jakarta:test" );
 		assertThat( shadowTask ).isNotNull();
 		assertThat( shadowTask.getOutcome() ).isEqualTo( TaskOutcome.SUCCESS );
-
-		verifyShadowLibsDirectory( scope, buildResult );
 
 		final File testResultsDir = new File( scope.getProjectBaseDirectory(), "real-jakarta/build/test-results/test" );
 		assertTrue( testResultsDir.exists() );

@@ -244,6 +244,13 @@ public class LocalProjectShadowSpec implements ShadowSpec {
 	}
 
 	@Override
+	public void runTests() {
+		if ( testsSpec == null ) {
+			testsSpec = createTestShadowSpec();
+		}
+	}
+
+	@Override
 	public void runTests(Action<ShadowTestSpec> specAction) {
 		if ( testsSpec == null ) {
 			testsSpec = createTestShadowSpec();

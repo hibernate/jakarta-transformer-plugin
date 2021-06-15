@@ -28,6 +28,15 @@ public interface ShadowSpec {
 	 * This form attempts to implicitly determine the dependency notation
 	 * for the tests
 	 */
+	void runTests();
+
+	/**
+	 * Transform the test dependency and run the transformed tests
+	 * against the transformed main JAR.
+	 *
+	 * This form attempts to implicitly determine the dependency notation
+	 * for the tests
+	 */
 	void runTests(Action<ShadowTestSpec> specAction);
 	void runTests(Closure<ShadowTestSpec> closure);
 

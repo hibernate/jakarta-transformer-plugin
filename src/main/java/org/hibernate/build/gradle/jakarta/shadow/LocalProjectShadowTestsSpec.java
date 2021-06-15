@@ -81,7 +81,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		final Task groupingTask = targetProject.getTasks().getByName( SHADOW_GROUPING_TASK );
 
 		final Test runnerTask = (Test) targetProject.getTasks().getByName("test" );
-		runnerTask.dependsOn( groupingTask );
+		final Test sourceProjectRunnerTask = (Test) sourceProject.getTasks().getByName("test" );
 
 		final JavaLibraryPlugin javaLibraryPlugin = sourceProject.getPlugins().findPlugin( JavaLibraryPlugin.class );
 		if ( javaLibraryPlugin != null ) {
@@ -109,6 +109,8 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				groupingTask
 		);
 
+		runnerTask.dependsOn( javaTransformationTask );
+		runnerTask.dependsOn( resourcesTransformationTask );
 
 		// prepare the Test task's classpath.  add:
 		// 	* shadowJar output
@@ -116,6 +118,9 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		//	* test resources shadow output
 		final FileTransformationTask shadowJarTask = (FileTransformationTask) targetProject.getTasks().getByName( "shadowJar" );
 		runnerTask.getInputs().file( shadowJarTask.getOutput() );
+		runnerTask.getInputs().dir( javaTransformationTask.getOutput() );
+		runnerTask.getInputs().dir( resourcesTransformationTask.getOutput() );
+
 		runnerTask.setClasspath(
 				targetProject.files( shadowJarTask.getOutput() ).plus( runnerTask.getClasspath() )
 		);
@@ -125,13 +130,30 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 				targetProject.files( javaTransformationTask.getOutput(), resourcesTransformationTask.getOutput() )
 		);
 
-//		// prepare the Test task's outputs
-//		runnerTask.getBinaryResultsDirectory().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test/binary" ) );
-//		runnerTask.getReports().getJunitXml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "reports/tests/test" ) );
-//		runnerTask.getReports().getHtml().getOutputLocation().convention( targetProject.getLayout().getBuildDirectory().dir( "test-results/test" ) );
+		// todo : maybe allow hook to transform these
+		runnerTask.setAllJvmArgs( sourceProjectRunnerTask.getAllJvmArgs() );
+		runnerTask.setSystemProperties( sourceProjectRunnerTask.getSystemProperties() );
+		runnerTask.setEnvironment( sourceProjectRunnerTask.getEnvironment() );
 
-		// todo : realistically we probably need to copy over stuff like jvm-args, etc...
-		//		although we could simply let user do that in the target-project build script
+		runnerTask.setFailFast( sourceProjectRunnerTask.getFailFast() );
+		runnerTask.setIgnoreFailures( sourceProjectRunnerTask.getIgnoreFailures() );
+		runnerTask.setDebug( sourceProjectRunnerTask.getDebug() );
+		runnerTask.setEnableAssertions( sourceProjectRunnerTask.getEnableAssertions() );
+
+		if ( sourceProjectRunnerTask.getDefaultCharacterEncoding() != null ) {
+			runnerTask.setDefaultCharacterEncoding( sourceProjectRunnerTask.getDefaultCharacterEncoding() );
+		}
+
+		if ( sourceProjectRunnerTask.getMaxHeapSize() != null ) {
+			runnerTask.setMaxHeapSize( sourceProjectRunnerTask.getMaxHeapSize() );
+		}
+		if ( sourceProjectRunnerTask.getMinHeapSize() != null ) {
+			runnerTask.setMinHeapSize( sourceProjectRunnerTask.getMinHeapSize() );
+		}
+
+
+		// todo : allow complete access to the Test task for access?
+
 		return runnerTask;
 	}
 

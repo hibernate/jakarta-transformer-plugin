@@ -7,9 +7,7 @@ apply from: rootProject.file( 'gradle/jakarta-shadow.gradle' )
 
 jakartaTransformation {
     shadow( project( ':hibernate-core' ) ) {
-        runTests {
-            useJUnitPlatform()
-        }
+        runTests()
         withJavadoc()
         withSources()
     }
@@ -17,31 +15,36 @@ jakartaTransformation {
 
 test {
     doFirst {
+
         getLogger().lifecycle( "############################################################" );
-        getLogger().lifecycle( " `{}` task classpath...", tasks.test.path );
+        getLogger().lifecycle( " `{}` task inputs...", path );
         getLogger().lifecycle( "############################################################" );
-        tasks.test.getClasspath().forEach {
+        inputs.sourceFiles.forEach {
+            getLogger().lifecycle( "   [source] -> {}", it.absolutePath )
+        }
+        inputs.files.forEach {
+            getLogger().lifecycle( "   [file] -> {}", it.absolutePath )
+        }
+        getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( "" );
+
+        getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( " `{}` task classpath...", path );
+        getLogger().lifecycle( "############################################################" );
+        classpath.forEach {
             getLogger().lifecycle("   -> {}", it.getAbsolutePath())
         }
         getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( "" );
+
+        getLogger().lifecycle( "############################################################" );
+        getLogger().lifecycle( " `{}` task testClassesDirs...", path );
+        getLogger().lifecycle( "############################################################" );
+        testClassesDirs.forEach {
+            getLogger().lifecycle( "", it.absolutePath )
+        }
         getLogger().lifecycle( "############################################################" );
 
-        renderDependencies(configurations.compileClasspath)
-        renderDependencies(configurations.runtimeClasspath)
-
-        renderDependencies(configurations.testCompileClasspath)
-        renderDependencies(configurations.testRuntimeClasspath)
     }
-}
-
-private void renderDependencies(Configuration configuration) {
-    getLogger().lifecycle("############################################################");
-    getLogger().lifecycle(" `{}` ({}) dependencies...", configuration.name, project.path);
-    getLogger().lifecycle("############################################################");
-    configuration.resolvedConfiguration.resolvedArtifacts.forEach {
-        getLogger().lifecycle("   -> {}", it.file.absolutePath)
-    }
-    getLogger().lifecycle("############################################################");
-    getLogger().lifecycle("############################################################");
 }
 

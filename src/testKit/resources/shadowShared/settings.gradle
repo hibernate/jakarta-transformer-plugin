@@ -1,8 +1,8 @@
 include 'hibernate-core'
-include 'hibernate-envers'
 include 'hibernate-testing'
+include 'hibernate-envers'
 
 include 'hibernate-core-jakarta'
-include 'hibernate-envers-jakarta'
 include 'hibernate-testing-jakarta'
+include 'hibernate-envers-jakarta'
 
