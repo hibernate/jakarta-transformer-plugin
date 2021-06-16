@@ -94,7 +94,11 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 			shadowConfiguration( "testRuntime" );
 		}
 
+		final SourceSet targetTestSourceSet = Helper.extractSourceSets( targetProject ).getByName( "test" );
 		final SourceSet sourceTestSourceSet = Helper.extractSourceSets( sourceProject ).getByName( "test" );
+		sourceTestSourceSet.getAllJava().getSrcDirs().forEach(
+				(srcDir) -> targetTestSourceSet.getAllJava().srcDir( srcDir )
+		);
 
 		final DirectoryTransformationTask javaTransformationTask = createJavaTransformationTask(
 				sourceProject,
@@ -122,15 +126,25 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 		runnerTask.getInputs().dir( resourcesTransformationTask.getOutput() );
 
 		runnerTask.setClasspath(
-				targetProject.files( shadowJarTask.getOutput() ).plus( runnerTask.getClasspath() )
+				targetProject.files( shadowJarTask.getOutput() )
+						.plus( runnerTask.getClasspath() )
 		);
 
 		// prepare the Test task's classes dir (for test discovery)
 		runnerTask.setTestClassesDirs(
-				targetProject.files( javaTransformationTask.getOutput(), resourcesTransformationTask.getOutput() )
+				targetProject.files(
+						javaTransformationTask.getOutput(),
+						resourcesTransformationTask.getOutput()
+				)
 		);
 
-		// todo : maybe allow hook to transform these
+		// todo : maybe allow hook to transform (JakartaTransformer) these
+		// 	e.g.,
+//		if ( ! sourceProjectRunnerTask.getAllJvmArgs().isEmpty() ) {
+//			File input = writeToFile( sourceProjectRunnerTask.getAllJvmArgs() );
+//			File output = transform( input );
+//			runnerTask.setAllJvmArgs( readFromFile( output ) );
+//		}
 		runnerTask.setAllJvmArgs( sourceProjectRunnerTask.getAllJvmArgs() );
 		runnerTask.setSystemProperties( sourceProjectRunnerTask.getSystemProperties() );
 		runnerTask.setEnvironment( sourceProjectRunnerTask.getEnvironment() );
@@ -151,8 +165,7 @@ public class LocalProjectShadowTestsSpec implements ShadowTestSpec {
 			runnerTask.setMinHeapSize( sourceProjectRunnerTask.getMinHeapSize() );
 		}
 
-
-		// todo : allow complete access to the Test task for access?
+		// todo : allow complete access to the Test task for config?
 
 		return runnerTask;
 	}
